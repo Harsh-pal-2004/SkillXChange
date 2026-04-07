@@ -71,7 +71,18 @@ app.set("io", io);
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
+app.set("trust proxy", 1);
+app.use(session({
+	secret: process.env.SESSION_SECRET || process.env.JWT_SECRET || "dev-session-secret",
+	resave: false,
+	saveUninitialized: false,
+	cookie: {
+		secure: process.env.NODE_ENV === "production",
+		sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+	},
+}));
 app.use(passport.initialize());
+app.use(passport.session());
 
 // Routes
 app.use("/auth", authRoutes);
@@ -81,18 +92,6 @@ app.use("/api/exchanges", exchangeRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/public", publicRoutes);
-app.use(passport.initialize());
-app.use(passport.session());
-
-app.use(session({
-  secret: "your-secret-key",
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: true,
-    sameSite: "none",
-  },
-}));
 
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI)
