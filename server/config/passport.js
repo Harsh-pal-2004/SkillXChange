@@ -6,12 +6,16 @@ import { createAvatarUrl } from "../utils/avatar.js";
 
 dotenv.config();
 
+const GOOGLE_CALLBACK_URL =
+  process.env.GOOGLE_CALLBACK_URL ||
+  "https://skillxchange-p4kp.onrender.com/auth/google/callback";
+
 passport.use(
   new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "https://skillxchange-p4kp.onrender.com/auth/google/callback",
+      callbackURL: GOOGLE_CALLBACK_URL,
     },
     async (accessToken, refreshToken, profile, done) => {
       try {

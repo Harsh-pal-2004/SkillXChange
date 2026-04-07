@@ -7,7 +7,10 @@ import { createAvatarUrl } from "../utils/avatar.js";
 import { broadcastPublicStats } from "../utils/publicStats.js";
 
 const router = express.Router();
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+const CLIENT_URL = ((process.env.CLIENT_URL || "http://localhost:5173")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean)[0] || "http://localhost:5173").replace(/\/$/, "");
 const isProduction = process.env.NODE_ENV === "production";
 
 const authCookieOptions = {
@@ -144,9 +147,18 @@ router.get(
   "/google/callback",
   passport.authenticate("google", { failureRedirect: "/", session: false }),
   async (req, res) => {
-    issueAuthCookie(res, req.user);
-    await broadcastPublicStats(req.app.get("io"));
-    res.redirect(`${CLIENT_URL}/dashboard`);
+    try {
+      if (!req.user) {
+        return res.redirect(`${CLIENT_URL}/`);
+      }
+
+      issueAuthCookie(res, req.user);
+      await broadcastPublicStats(req.app.get("io"));
+      return res.redirect(`${CLIENT_URL}/dashboard`);
+    } catch (error) {
+      console.error("Google callback failed:", error);
+      return res.redirect(`${CLIENT_URL}/`);
+    }
   },
 );
 
