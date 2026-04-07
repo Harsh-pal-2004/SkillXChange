@@ -30,97 +30,107 @@ const issueAuthCookie = (res, user) => {
 const getPublicUser = async (userId) => User.findById(userId);
 
 router.post("/register", async (req, res) => {
-  const {
-    name = "",
-    username = "",
-    email = "",
-    password = "",
-  } = req.body;
+  try {
+    const {
+      name = "",
+      username = "",
+      email = "",
+      password = "",
+    } = req.body;
 
-  const normalizedName = name.trim();
-  const normalizedUsername = username.trim().toLowerCase();
-  const normalizedEmail = email.trim().toLowerCase();
+    const normalizedName = name.trim();
+    const normalizedUsername = username.trim().toLowerCase();
+    const normalizedEmail = email.trim().toLowerCase();
 
-  if (
-    !normalizedName ||
-    !normalizedUsername ||
-    !normalizedEmail ||
-    password.length < 6
-  ) {
-    return res.status(400).json({
-      message:
-        "Name, username, email, and a password with at least 6 characters are required.",
+    if (
+      !normalizedName ||
+      !normalizedUsername ||
+      !normalizedEmail ||
+      password.length < 6
+    ) {
+      return res.status(400).json({
+        message:
+          "Name, username, email, and a password with at least 6 characters are required.",
+      });
+    }
+
+    const existingEmailUser = await User.findOne({ email: normalizedEmail }).select(
+      "+passwordHash",
+    );
+    if (existingEmailUser) {
+      return res.status(400).json({
+        message: existingEmailUser.passwordHash
+          ? "Email is already registered."
+          : "This email already uses Gmail sign-in. Please continue with Gmail.",
+      });
+    }
+
+    const existingUsernameUser = await User.findOne({
+      username: normalizedUsername,
+    }).select("+passwordHash");
+
+    if (existingUsernameUser) {
+      return res.status(400).json({ message: "User ID is already taken." });
+    }
+
+    const user = await User.create({
+      name: normalizedName,
+      username: normalizedUsername,
+      email: normalizedEmail,
+      passwordHash: hashPassword(password),
+      avatar: createAvatarUrl(normalizedName),
+      headline: "Ready to exchange skills",
+      bio: "I am excited to learn new skills and share my strengths.",
+      teachSkills: [],
+      learnSkills: [],
     });
+
+    issueAuthCookie(res, user);
+    await broadcastPublicStats(req.app.get("io"));
+    const publicUser = await getPublicUser(user._id);
+    return res.status(201).json(publicUser);
+  } catch (error) {
+    console.error("Register failed:", error);
+    return res.status(500).json({ message: "Registration failed. Please try again." });
   }
-
-  const existingEmailUser = await User.findOne({ email: normalizedEmail }).select(
-    "+passwordHash",
-  );
-  if (existingEmailUser) {
-    return res.status(400).json({
-      message: existingEmailUser.passwordHash
-        ? "Email is already registered."
-        : "This email already uses Gmail sign-in. Please continue with Gmail.",
-    });
-  }
-
-  const existingUsernameUser = await User.findOne({
-    username: normalizedUsername,
-  }).select("+passwordHash");
-
-  if (existingUsernameUser) {
-    return res.status(400).json({ message: "User ID is already taken." });
-  }
-
-  const user = await User.create({
-    name: normalizedName,
-    username: normalizedUsername,
-    email: normalizedEmail,
-    passwordHash: hashPassword(password),
-    avatar: createAvatarUrl(normalizedName),
-    headline: "Ready to exchange skills",
-    bio: "I am excited to learn new skills and share my strengths.",
-    teachSkills: [],
-    learnSkills: [],
-  });
-
-  issueAuthCookie(res, user);
-  await broadcastPublicStats(req.app.get("io"));
-  const publicUser = await getPublicUser(user._id);
-  return res.status(201).json(publicUser);
 });
 
 router.post("/login", async (req, res) => {
-  const { identifier = "", password = "" } = req.body;
-  const normalizedIdentifier = identifier.trim().toLowerCase();
+  try {
+    const { identifier = "", password = "" } = req.body;
+    const normalizedIdentifier = identifier.trim().toLowerCase();
 
-  if (!normalizedIdentifier || !password) {
-    return res.status(400).json({
-      message: "User ID or email and password are required.",
-    });
+    if (!normalizedIdentifier || !password) {
+      return res.status(400).json({
+        message: "User ID or email and password are required.",
+      });
+    }
+
+    const user = await User.findOne({
+      $or: [{ email: normalizedIdentifier }, { username: normalizedIdentifier }],
+    }).select("+passwordHash");
+
+    if (!user) {
+      return res.status(401).json({ message: "Invalid login credentials." });
+    }
+
+    if (!user.passwordHash) {
+      return res.status(400).json({
+        message: "This account uses Gmail sign-in. Please continue with Gmail.",
+      });
+    }
+
+    if (!verifyPassword(password, user.passwordHash)) {
+      return res.status(401).json({ message: "Invalid login credentials." });
+    }
+
+    issueAuthCookie(res, user);
+    const publicUser = await getPublicUser(user._id);
+    return res.json(publicUser);
+  } catch (error) {
+    console.error("Login failed:", error);
+    return res.status(500).json({ message: "Login failed. Please try again." });
   }
-
-  const user = await User.findOne({
-    $or: [{ email: normalizedIdentifier }, { username: normalizedIdentifier }],
-  }).select("+passwordHash");
-
-  if (!user) {
-    return res.status(401).json({ message: "Invalid login credentials." });
-  }
-
-  if (!user.passwordHash) {
-    return res.status(400).json({
-      message: "This account uses Gmail sign-in. Please continue with Gmail.",
-    });
-  }
-
-  if (!verifyPassword(password, user.passwordHash)) {
-    return res.status(401).json({ message: "Invalid login credentials." });
-  }
-
-  issueAuthCookie(res, user);
-  const publicUser = await getPublicUser(user._id);
-  return res.json(publicUser);
 });
 
 // Initiate Google OAuth

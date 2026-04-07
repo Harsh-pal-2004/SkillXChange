@@ -20,11 +20,31 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const allowedOrigins = (process.env.CLIENT_URL
-	? process.env.CLIENT_URL.split(",").map((origin) => origin.trim()).filter(Boolean)
-	: ["http://localhost:5173", "https://skill-x-change-mu.vercel.app"]);
+const defaultOrigins = [
+	"http://localhost:5173",
+	"https://skill-x-change-mu.vercel.app",
+];
 
-const isAllowedOrigin = (origin) => !origin || allowedOrigins.includes(origin);
+const envOrigins = (process.env.CLIENT_URL || "")
+	.split(",")
+	.map((origin) => origin.trim())
+	.filter(Boolean);
+
+const normalizeOrigin = (origin = "") => origin.replace(/\/$/, "");
+
+const allowedOrigins = Array.from(
+	new Set([...defaultOrigins, ...envOrigins].map(normalizeOrigin)),
+);
+
+const isAllowedOrigin = (origin) => {
+	if (!origin) return true;
+
+	const normalizedOrigin = normalizeOrigin(origin);
+	if (allowedOrigins.includes(normalizedOrigin)) return true;
+
+	// Allow Vercel preview deployments when credentials are required.
+	return /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(normalizedOrigin);
+};
 const corsOptions = {
 	origin: (origin, callback) => {
 		if (isAllowedOrigin(origin)) {
