@@ -21,28 +21,28 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 const allowedOrigins = (process.env.CLIENT_URL
-  ? process.env.CLIENT_URL.split(",").map((origin) => origin.trim()).filter(Boolean)
-  : ["http://localhost:5173", "https://skill-x-change-mu.vercel.app"]);
+	? process.env.CLIENT_URL.split(",").map((origin) => origin.trim()).filter(Boolean)
+	: ["http://localhost:5173", "https://skill-x-change-mu.vercel.app"]);
 
 const isAllowedOrigin = (origin) => !origin || allowedOrigins.includes(origin);
 const corsOptions = {
-  origin: (origin, callback) => {
-    if (isAllowedOrigin(origin)) {
-      callback(null, true);
-      return;
-    }
+	origin: (origin, callback) => {
+		if (isAllowedOrigin(origin)) {
+			callback(null, true);
+			return;
+		}
 
-    callback(new Error("Not allowed by CORS"));
-  },
-  credentials: true,
+		callback(new Error("Not allowed by CORS"));
+	},
+	credentials: true,
 };
 
 const io = new Server(server, {
-  cors: {
-    origin: allowedOrigins,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  },
+	cors: {
+		origin: allowedOrigins,
+		credentials: true,
+		methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+	},
 });
 app.set("io", io);
 
@@ -63,67 +63,67 @@ app.use("/api/public", publicRoutes);
 
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI)
-  .then(async () => {
-    await User.syncIndexes();
-    console.log("MongoDB connected");
-  })
-  .catch((err) => console.log("MongoDB error:", err));
+	.then(async () => {
+		await User.syncIndexes();
+		console.log("MongoDB connected");
+	})
+	.catch((err) => console.log("MongoDB error:", err));
 
 // Test route
 app.get("/", (req, res) => {
-  res.send("Server is running");
+	res.send("Server is running");
 });
 
 // Socket.io
 io.on("connection", (socket) => {
-  const { userId } = socket.handshake.auth || {};
-  console.log("User connected:", socket.id, userId || "anonymous");
+	const { userId } = socket.handshake.auth || {};
+	console.log("User connected:", socket.id, userId || "anonymous");
 
-  if (userId) {
-    socket.join(`user:${userId}`);
-  }
+	if (userId) {
+		socket.join(`user:${userId}`);
+	}
 
-  socket.on("conversation:join", (conversationId) => {
-    if (!conversationId) return;
-    socket.join(`conversation:${conversationId}`);
-  });
+	socket.on("conversation:join", (conversationId) => {
+		if (!conversationId) return;
+		socket.join(`conversation:${conversationId}`);
+	});
 
-  socket.on("conversation:leave", (conversationId) => {
-    if (!conversationId) return;
-    socket.leave(`conversation:${conversationId}`);
-  });
+	socket.on("conversation:leave", (conversationId) => {
+		if (!conversationId) return;
+		socket.leave(`conversation:${conversationId}`);
+	});
 
-  socket.on("public:stats:subscribe", async () => {
-    socket.join("public:stats");
-    socket.emit("public:stats", await getPublicStats());
-  });
+	socket.on("public:stats:subscribe", async () => {
+		socket.join("public:stats");
+		socket.emit("public:stats", await getPublicStats());
+	});
 
-  socket.on("public:stats:unsubscribe", () => {
-    socket.leave("public:stats");
-  });
+	socket.on("public:stats:unsubscribe", () => {
+		socket.leave("public:stats");
+	});
 
-  const relayCallEvent = (eventName) => {
-    socket.on(eventName, (payload = {}) => {
-      if (!payload.conversationId) return;
+	const relayCallEvent = (eventName) => {
+		socket.on(eventName, (payload = {}) => {
+			if (!payload.conversationId) return;
 
-      socket.to(`conversation:${payload.conversationId}`).emit(eventName, {
-        ...payload,
-        fromUserId: userId,
-      });
-    });
-  };
+			socket.to(`conversation:${payload.conversationId}`).emit(eventName, {
+				...payload,
+				fromUserId: userId,
+			});
+		});
+	};
 
-  [
-    "call:start",
-    "call:offer",
-    "call:answer",
-    "call:ice-candidate",
-    "call:end",
-  ].forEach(relayCallEvent);
+	[
+		"call:start",
+		"call:offer",
+		"call:answer",
+		"call:ice-candidate",
+		"call:end",
+	].forEach(relayCallEvent);
 
-  socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
-  });
+	socket.on("disconnect", () => {
+		console.log("User disconnected:", socket.id);
+	});
 });
 
 const PORT = process.env.PORT || 5000;
