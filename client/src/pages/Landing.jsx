@@ -122,7 +122,7 @@ export default function Landing() {
       return;
     }
 
-    window.location.href = "http://localhost:5000/auth/google";
+    window.location.href = ""https://skillxchange-p4kp.onrender.com/auth/google"";
   };
 
   const handleLocalAuth = async () => {
