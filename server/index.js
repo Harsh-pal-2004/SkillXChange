@@ -32,8 +32,8 @@ app.set("io", io);
 
 // Middleware
 app.use(cors({
-  origin: CLIENT_URL,
-  credentials: true
+  origin: process.env.CLIENT_URL,
+  credentials: true,
 }));
 app.use(express.json());
 app.use(cookieParser());
