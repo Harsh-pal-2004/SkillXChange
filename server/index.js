@@ -15,6 +15,7 @@ import dashboardRoutes from "./routes/dashboard.js";
 import publicRoutes from "./routes/public.js";
 import User from "./models/User.js";
 import { getPublicStats } from "./utils/publicStats.js";
+import session from "express-session";
 
 dotenv.config();
 
@@ -80,6 +81,18 @@ app.use("/api/exchanges", exchangeRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/public", publicRoutes);
+app.use(passport.initialize());
+app.use(passport.session());
+
+app.use(session({
+  secret: "your-secret-key",
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: true,
+    sameSite: "none",
+  },
+}));
 
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI)
