@@ -20,7 +20,7 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+CLIENT_URL=https://skill-x-change-mu.vercel.app
 
 const io = new Server(server, {
   cors: {
@@ -31,7 +31,10 @@ const io = new Server(server, {
 app.set("io", io);
 
 // Middleware
-app.use(cors({ origin: CLIENT_URL, credentials: true }));
+app.use(cors({
+  origin: CLIENT_URL,
+  credentials: true
+}));
 app.use(express.json());
 app.use(cookieParser());
 app.use(passport.initialize());
