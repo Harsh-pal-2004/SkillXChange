@@ -24,9 +24,12 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, ".env") });
 
+// ---- App bootstrap ----
 const app = express();
 const server = http.createServer(app);
-const normalizeOrigin = (origin = "") => origin.replace(/\/$/, "");
+
+// ---- CORS helpers ----
+const trimTrailingSlash = (origin = "") => origin.replace(/\/$/, "");
 const defaultOrigins = [
 	"http://localhost:5173",
 	"https://skill-x-change-mu.vercel.app",
@@ -38,18 +41,19 @@ const envOrigins = (process.env.CLIENT_URL || "")
 	.filter(Boolean);
 
 const allowedOrigins = Array.from(
-	new Set([...defaultOrigins, ...envOrigins].map(normalizeOrigin)),
+	new Set([...defaultOrigins, ...envOrigins].map(trimTrailingSlash)),
 );
 
 const isAllowedOrigin = (origin) => {
 	if (!origin) return true;
 
-	const normalizedOrigin = normalizeOrigin(origin);
+	const normalizedOrigin = trimTrailingSlash(origin);
 	if (allowedOrigins.includes(normalizedOrigin)) return true;
 
 	// Allow Vercel preview deployments when credentials are required.
 	return /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(normalizedOrigin);
 };
+
 const corsOptions = {
 	origin: (origin, callback) => {
 		if (isAllowedOrigin(origin)) {
@@ -65,6 +69,7 @@ const corsOptions = {
 	optionsSuccessStatus: 204,
 };
 
+// ---- Realtime server ----
 const io = new Server(server, {
 	cors: {
 		origin: (origin, callback) => {
@@ -82,7 +87,7 @@ const io = new Server(server, {
 });
 app.set("io", io);
 
-// Middleware
+// ---- Middleware ----
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
 app.use(express.json());
@@ -100,7 +105,7 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Routes
+// ---- Routes ----
 app.use("/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/listings", listingRoutes);
@@ -109,7 +114,7 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/public", publicRoutes);
 
-// MongoDB connection
+// ---- Database ----
 mongoose.connect(process.env.MONGO_URI)
 	.then(async () => {
 		await User.syncIndexes();
@@ -117,12 +122,12 @@ mongoose.connect(process.env.MONGO_URI)
 	})
 	.catch((err) => console.log("MongoDB error:", err));
 
-// Test route
+// ---- Health route ----
 app.get("/", (req, res) => {
 	res.send("Server is running");
 });
 
-// Socket.io
+// ---- Socket events ----
 io.on("connection", (socket) => {
 	const { userId } = socket.handshake.auth || {};
 	console.log("User connected:", socket.id, userId || "anonymous");
@@ -173,5 +178,6 @@ io.on("connection", (socket) => {
 		console.log("User disconnected:", socket.id);
 	});
 });
+
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

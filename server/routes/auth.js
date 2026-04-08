@@ -13,12 +13,17 @@ const CLIENT_URL = ((process.env.CLIENT_URL || "http://localhost:5173")
   .filter(Boolean)[0] || "http://localhost:5173").replace(/\/$/, "");
 const isProduction = process.env.NODE_ENV === "production";
 
+// Cookie settings shared by login/register/google-auth.
 const authCookieOptions = {
   httpOnly: true,
   sameSite: isProduction ? "none" : "lax",
   secure: isProduction,
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
+
+const normalizeText = (value = "") => String(value).trim();
+const normalizeEmail = (value = "") => normalizeText(value).toLowerCase();
+const normalizeUsername = (value = "") => normalizeText(value).toLowerCase();
 
 const issueAuthCookie = (res, user) => {
   const token = jwt.sign(
@@ -41,9 +46,9 @@ router.post("/register", async (req, res) => {
       password = "",
     } = req.body;
 
-    const normalizedName = name.trim();
-    const normalizedUsername = username.trim().toLowerCase();
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedName = normalizeText(name);
+    const normalizedUsername = normalizeUsername(username);
+    const normalizedEmail = normalizeEmail(email);
 
     if (
       !normalizedName ||
@@ -101,7 +106,7 @@ router.post("/register", async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     const { identifier = "", password = "" } = req.body;
-    const normalizedIdentifier = identifier.trim().toLowerCase();
+    const normalizedIdentifier = normalizeUsername(identifier);
 
     if (!normalizedIdentifier || !password) {
       return res.status(400).json({

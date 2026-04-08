@@ -6,6 +6,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Reads the active login session from the backend.
   const refreshUser = async () => {
     try {
       const response = await API.get("/auth/me");
@@ -18,13 +19,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    // On app load, check if user is already logged in.
     setLoading(true);
     refreshUser();
   }, []);
 
   const logout = async () => {
-    await API.get("/auth/logout");
-    setUser(null);
+    try {
+      await API.get("/auth/logout");
+    } finally {
+      setUser(null);
+    }
   };
 
   return (
