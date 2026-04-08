@@ -1,4 +1,5 @@
 import express from "express";
+import mongoose from "mongoose";
 import Conversation from "../models/Conversation.js";
 import Message from "../models/Message.js";
 import User from "../models/User.js";
@@ -58,47 +59,55 @@ router.get("/conversations", requireAuth, async (req, res) => {
 });
 
 router.post("/conversations/direct", requireAuth, async (req, res) => {
-  const { targetUserId } = req.body;
+  try {
+    const { targetUserId } = req.body;
 
-  if (!targetUserId) {
-    return res.status(400).json({ message: "Target user is required" });
-  }
+    if (!targetUserId) {
+      return res.status(400).json({ message: "Target user is required" });
+    }
 
-  if (String(targetUserId) === String(req.user._id)) {
-    return res
-      .status(400)
-      .json({ message: "You cannot start a chat with yourself" });
-  }
+    if (!mongoose.Types.ObjectId.isValid(targetUserId)) {
+      return res.status(400).json({ message: "Invalid target user id" });
+    }
 
-  const targetUser = await User.findById(targetUserId);
-  if (!targetUser) {
-    return res.status(404).json({ message: "User not found" });
-  }
+    if (String(targetUserId) === String(req.user._id)) {
+      return res
+        .status(400)
+        .json({ message: "You cannot start a chat with yourself" });
+    }
 
-  let conversation = await Conversation.findOne({
-    participants: { $all: [req.user._id, targetUserId], $size: 2 },
-  })
-    .populate("participants", "name email avatar headline")
-    .populate("exchange");
+    const targetUser = await User.findById(targetUserId);
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-  if (!conversation) {
-    conversation = await Conversation.create({
-      participants: [req.user._id, targetUserId],
-      exchange: null,
-      lastMessage: "",
-      lastMessageAt: null,
-      unreadCounts: {
-        [req.user._id]: 0,
-        [targetUserId]: 0,
-      },
-    });
-
-    conversation = await Conversation.findById(conversation._id)
+    let conversation = await Conversation.findOne({
+      participants: { $all: [req.user._id, targetUserId], $size: 2 },
+    })
       .populate("participants", "name email avatar headline")
       .populate("exchange");
-  }
 
-  return res.status(201).json(serializeConversation(conversation, req.user._id));
+    if (!conversation) {
+      conversation = await Conversation.create({
+        participants: [req.user._id, targetUserId],
+        exchange: null,
+        lastMessage: "",
+        lastMessageAt: null,
+        unreadCounts: {
+          [req.user._id]: 0,
+          [targetUserId]: 0,
+        },
+      });
+
+      conversation = await Conversation.findById(conversation._id)
+        .populate("participants", "name email avatar headline")
+        .populate("exchange");
+    }
+
+    return res.status(201).json(serializeConversation(conversation, req.user._id));
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to create conversation" });
+  }
 });
 
 router.get(
@@ -152,73 +161,97 @@ router.post(
   "/conversations/:conversationId/messages",
   requireAuth,
   async (req, res) => {
-    const { text, type = "text", metadata = {} } = req.body;
-    const trimmedText = text?.trim();
+    try {
+      const { text, type = "text", metadata = {} } = req.body;
+      const trimmedText = text?.trim();
 
-    if (type === "text" && !trimmedText) {
-      return res.status(400).json({ message: "Message text is required" });
-    }
-
-    const conversation = await Conversation.findById(req.params.conversationId);
-
-    if (
-      !conversation ||
-      !conversation.participants.some(
-        (participantId) => String(participantId) === String(req.user._id),
-      )
-    ) {
-      return res.status(404).json({ message: "Conversation not found" });
-    }
-
-    const messageText = type === "call" ? formatCallSummary(metadata) : trimmedText;
-
-    const message = await Message.create({
-      conversation: conversation._id,
-      sender: req.user._id,
-      text: messageText,
-      type,
-      metadata:
-        type === "call"
-          ? {
-              startedAt: metadata.startedAt || null,
-              endedAt: metadata.endedAt || null,
-              durationSeconds: metadata.durationSeconds ?? null,
-            }
-          : undefined,
-    });
-
-    conversation.lastMessage = messageText;
-    conversation.lastMessageAt = message.createdAt;
-    conversation.participants.forEach((participantId) => {
-      const participantKey = String(participantId);
-      if (participantKey === String(req.user._id)) {
-        conversation.unreadCounts.set(participantKey, 0);
-        return;
+      if (!["text", "call"].includes(type)) {
+        return res.status(400).json({ message: "Invalid message type" });
       }
 
-      const previousCount = conversation.unreadCounts.get(participantKey) ?? 0;
-      conversation.unreadCounts.set(participantKey, previousCount + 1);
-    });
-    await conversation.save();
+      if (!mongoose.Types.ObjectId.isValid(req.params.conversationId)) {
+        return res.status(400).json({ message: "Invalid conversation id" });
+      }
 
-    const populatedMessage = await Message.findById(message._id).populate(
-      "sender",
-      "name email avatar",
-    );
+      if (type === "text" && !trimmedText) {
+        return res.status(400).json({ message: "Message text is required" });
+      }
 
-    const messagePayload = {
-      ...serializeMessage(populatedMessage),
-      unreadCounts: Object.fromEntries(conversation.unreadCounts.entries()),
-    };
+      if (type === "call") {
+        const duration = metadata.durationSeconds;
+        if (
+          duration !== undefined &&
+          duration !== null &&
+          (!Number.isFinite(Number(duration)) || Number(duration) < 0)
+        ) {
+          return res.status(400).json({ message: "Invalid call duration" });
+        }
+      }
 
-    conversation.participants.forEach((participantId) => {
-      req.app
-        .get("io")
-        .to(`user:${participantId}`)
-        .emit("chat:message", messagePayload);
-    });
+      const conversation = await Conversation.findById(req.params.conversationId);
 
-    res.status(201).json(populatedMessage);
+      if (
+        !conversation ||
+        !conversation.participants.some(
+          (participantId) => String(participantId) === String(req.user._id),
+        )
+      ) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+
+      const messageText =
+        type === "call" ? formatCallSummary(metadata) : trimmedText;
+
+      const message = await Message.create({
+        conversation: conversation._id,
+        sender: req.user._id,
+        text: messageText,
+        type,
+        metadata:
+          type === "call"
+            ? {
+                startedAt: metadata.startedAt || null,
+                endedAt: metadata.endedAt || null,
+                durationSeconds: metadata.durationSeconds ?? null,
+              }
+            : undefined,
+      });
+
+      conversation.lastMessage = messageText;
+      conversation.lastMessageAt = message.createdAt;
+      conversation.participants.forEach((participantId) => {
+        const participantKey = String(participantId);
+        if (participantKey === String(req.user._id)) {
+          conversation.unreadCounts.set(participantKey, 0);
+          return;
+        }
+
+        const previousCount = conversation.unreadCounts.get(participantKey) ?? 0;
+        conversation.unreadCounts.set(participantKey, previousCount + 1);
+      });
+      await conversation.save();
+
+      const populatedMessage = await Message.findById(message._id).populate(
+        "sender",
+        "name email avatar",
+      );
+
+      const messagePayload = {
+        ...serializeMessage(populatedMessage),
+        unreadCounts: Object.fromEntries(conversation.unreadCounts.entries()),
+      };
+
+      conversation.participants.forEach((participantId) => {
+        req.app
+          .get("io")
+          .to(`user:${participantId}`)
+          .emit("chat:message", messagePayload);
+      });
+
+      return res.status(201).json(populatedMessage);
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to send message" });
+    }
   },
 );
 
