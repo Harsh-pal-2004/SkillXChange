@@ -2,28 +2,25 @@ import express from "express";
 import passport from "passport";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import { env } from "../config/env.js";
 import { hashPassword, verifyPassword } from "../utils/password.js";
 import { createAvatarUrl } from "../utils/avatar.js";
 import { broadcastPublicStats } from "../utils/publicStats.js";
 
 const router = express.Router();
-const CLIENT_URL = ((process.env.CLIENT_URL || "http://localhost:5173")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean)[0] || "http://localhost:5173").replace(/\/$/, "");
-const isProduction = process.env.NODE_ENV === "production";
+const CLIENT_URL = env.primaryClientUrl;
 
 const authCookieOptions = {
   httpOnly: true,
-  sameSite: isProduction ? "none" : "lax",
-  secure: isProduction,
+  sameSite: env.isProduction ? "none" : "lax",
+  secure: env.isProduction,
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
 const issueAuthCookie = (res, user) => {
   const token = jwt.sign(
     { id: user._id, email: user.email, role: user.role },
-    process.env.JWT_SECRET,
+    env.jwtSecret,
     { expiresIn: "7d" },
   );
 
@@ -167,7 +164,7 @@ router.get("/me", (req, res) => {
   const token = req.cookies.token;
   if (!token) return res.status(401).json({ message: "Not authenticated" });
 
-  jwt.verify(token, process.env.JWT_SECRET, async (error, decoded) => {
+  jwt.verify(token, env.jwtSecret, async (error, decoded) => {
     if (error) {
       return res.status(401).json({ message: "Invalid token" });
     }

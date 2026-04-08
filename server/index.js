@@ -1,11 +1,11 @@
 import express from "express";
 import http from "http";
 import cors from "cors";
-import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import mongoose from "mongoose";
 import { Server } from "socket.io";
 import passport from "./config/passport.js";
+import { env, validateRequiredEnv } from "./config/env.js";
 import authRoutes from "./routes/auth.js";
 import profileRoutes from "./routes/profile.js";
 import listingRoutes from "./routes/listings.js";
@@ -17,31 +17,17 @@ import User from "./models/User.js";
 import { getPublicStats } from "./utils/publicStats.js";
 import session from "express-session";
 
-dotenv.config();
+validateRequiredEnv();
 
 const app = express();
 const server = http.createServer(app);
-const defaultOrigins = [
-	"http://localhost:5173",
-	"https://skill-x-change-mu.vercel.app",
-];
-
-const envOrigins = (process.env.CLIENT_URL || "")
-	.split(",")
-	.map((origin) => origin.trim())
-	.filter(Boolean);
-
 const normalizeOrigin = (origin = "") => origin.replace(/\/$/, "");
-
-const allowedOrigins = Array.from(
-	new Set([...defaultOrigins, ...envOrigins].map(normalizeOrigin)),
-);
 
 const isAllowedOrigin = (origin) => {
 	if (!origin) return true;
 
 	const normalizedOrigin = normalizeOrigin(origin);
-	if (allowedOrigins.includes(normalizedOrigin)) return true;
+	if (env.allowedClientOrigins.includes(normalizedOrigin)) return true;
 
 	// Allow Vercel preview deployments when credentials are required.
 	return /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(normalizedOrigin);
@@ -55,30 +41,42 @@ const corsOptions = {
 
 		callback(new Error("Not allowed by CORS"));
 	},
+	methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+	allowedHeaders: ["Content-Type", "Authorization"],
 	credentials: true,
+	optionsSuccessStatus: 204,
 };
 
 const io = new Server(server, {
 	cors: {
-		origin: allowedOrigins,
+		origin: (origin, callback) => {
+			if (isAllowedOrigin(origin)) {
+				callback(null, true);
+				return;
+			}
+
+			callback(new Error("Not allowed by Socket.IO CORS"));
+		},
 		credentials: true,
 		methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+		allowedHeaders: ["Content-Type", "Authorization"],
 	},
 });
 app.set("io", io);
 
 // Middleware
 app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 app.set("trust proxy", 1);
 app.use(session({
-	secret: process.env.SESSION_SECRET || process.env.JWT_SECRET || "dev-session-secret",
+	secret: env.sessionSecret,
 	resave: false,
 	saveUninitialized: false,
 	cookie: {
-		secure: process.env.NODE_ENV === "production",
-		sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+		secure: env.isProduction,
+		sameSite: env.isProduction ? "none" : "lax",
 	},
 }));
 app.use(passport.initialize());
@@ -94,7 +92,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/public", publicRoutes);
 
 // MongoDB connection
-mongoose.connect(process.env.MONGO_URI)
+mongoose.connect(env.mongoUri)
 	.then(async () => {
 		await User.syncIndexes();
 		console.log("MongoDB connected");
@@ -157,6 +155,4 @@ io.on("connection", (socket) => {
 		console.log("User disconnected:", socket.id);
 	});
 });
-
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(env.port, () => console.log(`Server running on port ${env.port}`));

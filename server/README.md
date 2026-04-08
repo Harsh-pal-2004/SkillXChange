@@ -40,7 +40,7 @@ npm start
 
 ## Environment
 
-Create a `.env` file in the server folder with at least:
+Create a `.env` file in the server folder (you can start from `.env.example`) with at least:
 
 ```bash
 PORT=5000

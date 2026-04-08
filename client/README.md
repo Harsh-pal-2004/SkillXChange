@@ -46,9 +46,13 @@ npm run lint
 
 ## Environment
 
-The client expects the API server to be available at `http://localhost:5000` by default through [src/api/axios.js](src/api/axios.js).
+The client reads the backend URL from `VITE_API_URL`.
 
-If the backend runs on a different host or port, update the Axios base URL in that file.
+Create `client/.env` (or copy from `client/.env.example`) and set:
+
+```bash
+VITE_API_URL=http://localhost:5000
+```
 
 ## Project Structure
 
