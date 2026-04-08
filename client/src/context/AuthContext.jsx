@@ -6,13 +6,29 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const extractUserFromResponse = (payload) => payload?.data?.data || null;
+
   // Reads the active login session from the backend.
-  const refreshUser = async () => {
+  const refreshUser = async ({ silent = false } = {}) => {
     try {
       const response = await API.get("/auth/me");
-      setUser(response.data);
-    } catch {
-      setUser(null);
+      const resolvedUser = extractUserFromResponse(response);
+      setUser(resolvedUser);
+      return {
+        success: true,
+        user: resolvedUser,
+        message: response?.data?.message || "Authenticated",
+      };
+    } catch (error) {
+      const statusCode = error?.response?.status;
+      if (statusCode === 401) {
+        setUser(null);
+      }
+
+      const message =
+        error?.response?.data?.message || "Unable to verify current session.";
+
+      return { success: false, user: null, message };
     } finally {
       setLoading(false);
     }
@@ -21,7 +37,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // On app load, check if user is already logged in.
     setLoading(true);
-    refreshUser();
+    refreshUser({ silent: true });
   }, []);
 
   const logout = async () => {

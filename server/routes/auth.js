@@ -25,6 +25,28 @@ const normalizeText = (value = "") => String(value).trim();
 const normalizeEmail = (value = "") => normalizeText(value).toLowerCase();
 const normalizeUsername = (value = "") => normalizeText(value).toLowerCase();
 
+const sendSuccess = (res, { status = 200, message, data = null }) =>
+  res.status(status).json({
+    success: true,
+    message,
+    data,
+  });
+
+const sendError = (res, { status, message }) =>
+  res.status(status).json({
+    success: false,
+    message,
+    data: null,
+  });
+
+const clearLegacySessionCookie = (res) => {
+  res.clearCookie("connect.sid", {
+    httpOnly: true,
+    sameSite: authCookieOptions.sameSite,
+    secure: authCookieOptions.secure,
+  });
+};
+
 const issueAuthCookie = (res, user) => {
   const token = jwt.sign(
     { id: user._id, email: user.email, role: user.role },
@@ -56,7 +78,8 @@ router.post("/register", async (req, res) => {
       !normalizedEmail ||
       password.length < 6
     ) {
-      return res.status(400).json({
+      return sendError(res, {
+        status: 400,
         message:
           "Name, username, email, and a password with at least 6 characters are required.",
       });
@@ -66,10 +89,9 @@ router.post("/register", async (req, res) => {
       "+passwordHash",
     );
     if (existingEmailUser) {
-      return res.status(400).json({
-        message: existingEmailUser.passwordHash
-          ? "Email is already registered."
-          : "This email already uses Gmail sign-in. Please continue with Gmail.",
+      return sendError(res, {
+        status: 409,
+        message: "Account already exists, please login",
       });
     }
 
@@ -78,7 +100,10 @@ router.post("/register", async (req, res) => {
     }).select("+passwordHash");
 
     if (existingUsernameUser) {
-      return res.status(400).json({ message: "User ID is already taken." });
+      return sendError(res, {
+        status: 409,
+        message: "Account already exists, please login",
+      });
     }
 
     const user = await User.create({
@@ -93,13 +118,21 @@ router.post("/register", async (req, res) => {
       learnSkills: [],
     });
 
+    clearLegacySessionCookie(res);
     issueAuthCookie(res, user);
     await broadcastPublicStats(req.app.get("io"));
     const publicUser = await getPublicUser(user._id);
-    return res.status(201).json(publicUser);
+    return sendSuccess(res, {
+      status: 201,
+      message: "Signup successful",
+      data: publicUser,
+    });
   } catch (error) {
     console.error("Register failed:", error);
-    return res.status(500).json({ message: "Registration failed. Please try again." });
+    return sendError(res, {
+      status: 500,
+      message: "Registration failed. Please try again.",
+    });
   }
 });
 
@@ -109,7 +142,8 @@ router.post("/login", async (req, res) => {
     const normalizedIdentifier = normalizeUsername(identifier);
 
     if (!normalizedIdentifier || !password) {
-      return res.status(400).json({
+      return sendError(res, {
+        status: 400,
         message: "User ID or email and password are required.",
       });
     }
@@ -119,25 +153,39 @@ router.post("/login", async (req, res) => {
     }).select("+passwordHash");
 
     if (!user) {
-      return res.status(401).json({ message: "Invalid login credentials." });
+      return sendError(res, {
+        status: 404,
+        message: "No account found, please sign up",
+      });
     }
 
     if (!user.passwordHash) {
-      return res.status(400).json({
+      return sendError(res, {
+        status: 400,
         message: "This account uses Gmail sign-in. Please continue with Gmail.",
       });
     }
 
     if (!verifyPassword(password, user.passwordHash)) {
-      return res.status(401).json({ message: "Invalid login credentials." });
+      return sendError(res, {
+        status: 401,
+        message: "Incorrect password",
+      });
     }
 
+    clearLegacySessionCookie(res);
     issueAuthCookie(res, user);
     const publicUser = await getPublicUser(user._id);
-    return res.json(publicUser);
+    return sendSuccess(res, {
+      message: "Login successful",
+      data: publicUser,
+    });
   } catch (error) {
     console.error("Login failed:", error);
-    return res.status(500).json({ message: "Login failed. Please try again." });
+    return sendError(res, {
+      status: 500,
+      message: "Login failed. Please try again.",
+    });
   }
 });
 
@@ -169,28 +217,35 @@ router.get(
 
 // Get current user
 router.get("/me", async (req, res) => {
+  const token = req.cookies.token;
+
+  if (!token) {
+    return sendError(res, {
+      status: 401,
+      message: "Not authenticated",
+    });
+  }
+
   try {
-    // Passport session auth path.
-    if (req.user) {
-      return res.status(200).json(req.user);
-    }
-
-    // JWT cookie auth path.
-    const token = req.cookies.token;
-    if (!token) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.id);
 
     if (!user) {
-      return res.status(401).json({ message: "User not found" });
+      return sendError(res, {
+        status: 401,
+        message: "Not authenticated",
+      });
     }
 
-    return res.status(200).json(user);
+    return sendSuccess(res, {
+      message: "Authenticated",
+      data: user,
+    });
   } catch (error) {
-    return res.status(401).json({ message: "Invalid token" });
+    return sendError(res, {
+      status: 401,
+      message: "Not authenticated",
+    });
   }
 });
 
@@ -201,7 +256,11 @@ router.get("/logout", (req, res) => {
     sameSite: authCookieOptions.sameSite,
     secure: authCookieOptions.secure,
   });
-  res.json({ message: "Logged out" });
+  clearLegacySessionCookie(res);
+  return sendSuccess(res, {
+    message: "Logged out",
+    data: null,
+  });
 });
 
 export default router;

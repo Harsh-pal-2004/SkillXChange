@@ -17,7 +17,6 @@ import dashboardRoutes from "./routes/dashboard.js";
 import publicRoutes from "./routes/public.js";
 import User from "./models/User.js";
 import { getPublicStats } from "./utils/publicStats.js";
-import session from "express-session";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -93,17 +92,7 @@ app.options(/.*/, cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 app.set("trust proxy", 1);
-app.use(session({
-	secret: process.env.SESSION_SECRET || process.env.JWT_SECRET || "dev-session-secret",
-	resave: false,
-	saveUninitialized: false,
-	cookie: {
-		secure: process.env.NODE_ENV === "production",
-		sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-	},
-}));
 app.use(passport.initialize());
-app.use(passport.session());
 
 // ---- Routes ----
 app.use("/auth", authRoutes);

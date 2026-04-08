@@ -28,7 +28,7 @@ const initialForm = {
 };
 
 export default function Landing() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, setUser } = useAuth();
   const navigate = useNavigate();
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [mode, setMode] = useState("login");
@@ -125,18 +125,25 @@ export default function Landing() {
     window.location.href = "https://skillxchange-p4kp.onrender.com/auth/google";
   };
 
+  const resolveApiMessage = (requestError, fallbackMessage) => {
+    const apiMessage = requestError?.response?.data?.message;
+    return apiMessage || fallbackMessage;
+  };
+
   const handleLocalAuth = async () => {
     setSubmitting(true);
     setError("");
 
     try {
+      let response;
+
       if (mode === "login") {
-        await API.post("/auth/login", {
+        response = await API.post("/auth/login", {
           identifier: form.identifier,
           password: form.password,
         });
       } else {
-        await API.post("/auth/register", {
+        response = await API.post("/auth/register", {
           name: form.name,
           username: form.username,
           email: form.email,
@@ -144,13 +151,22 @@ export default function Landing() {
         });
       }
 
-      await refreshUser();
+      const authenticatedUser = response?.data?.data || null;
+      if (!response?.data?.success || !authenticatedUser) {
+        throw new Error(response?.data?.message || "Authentication failed.");
+      }
+
+      // Update UI immediately, then verify with /auth/me in background.
+      setUser(authenticatedUser);
+      await refreshUser({ silent: true });
       closeAuth();
       navigate("/dashboard");
     } catch (requestError) {
       setError(
-        requestError.response?.data?.message ||
+        resolveApiMessage(
+          requestError,
           "Authentication failed. Please try again.",
+        ),
       );
     } finally {
       setSubmitting(false);
@@ -168,7 +184,10 @@ export default function Landing() {
         </div>
 
         <div className="hidden items-center gap-8 text-sm text-gray-600 md:flex">
-          <a href="#features" className="transition-colors hover:text-purple-600">
+          <a
+            href="#features"
+            className="transition-colors hover:text-purple-600"
+          >
             Features
           </a>
           <a href="#how" className="transition-colors hover:text-purple-600">
@@ -229,7 +248,9 @@ export default function Landing() {
               <ArrowRight size={18} />
             </button>
             <button
-              onClick={() => (user ? navigate("/marketplace") : openAuth("login"))}
+              onClick={() =>
+                user ? navigate("/marketplace") : openAuth("login")
+              }
               className="flex items-center justify-center gap-2 rounded-full border border-gray-200 px-8 py-4 text-base font-medium text-gray-700 transition-all duration-200 hover:bg-gray-50"
             >
               Browse Skills
@@ -399,12 +420,18 @@ export default function Landing() {
               <h4 className="mb-4 font-semibold text-white">Product</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <a href="#features" className="transition-colors hover:text-purple-400">
+                  <a
+                    href="#features"
+                    className="transition-colors hover:text-purple-400"
+                  >
                     Features
                   </a>
                 </li>
                 <li>
-                  <a href="#how" className="transition-colors hover:text-purple-400">
+                  <a
+                    href="#how"
+                    className="transition-colors hover:text-purple-400"
+                  >
                     How It Works
                   </a>
                 </li>
