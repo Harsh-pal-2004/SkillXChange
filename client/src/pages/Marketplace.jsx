@@ -44,13 +44,14 @@ export default function Marketplace() {
       setLoading(true);
 
       try {
-        const [listingsResponse, profilesResponse, exchangesResponse] = await Promise.all([
-          API.get("/api/listings", {
-            params: { excludeMine: true },
-          }),
-          API.get("/api/profile/discover"),
-          API.get("/api/exchanges"),
-        ]);
+        const [listingsResponse, profilesResponse, exchangesResponse] =
+          await Promise.all([
+            API.get("/api/listings", {
+              params: { excludeMine: true },
+            }),
+            API.get("/api/profile/discover"),
+            API.get("/api/exchanges"),
+          ]);
 
         setListings(listingsResponse.data);
         setProfiles(profilesResponse.data);
@@ -77,7 +78,12 @@ export default function Marketplace() {
       listings.filter((listing) => {
         const matchesSearch =
           !search.trim() ||
-          [listing.teachSkill, listing.learnSkill, listing.bio, listing.owner?.name]
+          [
+            listing.teachSkill,
+            listing.learnSkill,
+            listing.bio,
+            listing.owner?.name,
+          ]
             .filter(Boolean)
             .some((value) =>
               value.toLowerCase().includes(search.trim().toLowerCase()),
@@ -92,7 +98,8 @@ export default function Marketplace() {
   );
 
   const ownerIdsWithListings = useMemo(
-    () => new Set(listings.map((listing) => listing.owner?._id).filter(Boolean)),
+    () =>
+      new Set(listings.map((listing) => listing.owner?._id).filter(Boolean)),
     [listings],
   );
 
@@ -130,7 +137,11 @@ export default function Marketplace() {
   );
 
   const handleSubmitListing = async () => {
-    if (!form.teachSkill.trim() || !form.learnSkill.trim() || !form.bio.trim()) {
+    if (
+      !form.teachSkill.trim() ||
+      !form.learnSkill.trim() ||
+      !form.bio.trim()
+    ) {
       return;
     }
 
@@ -211,7 +222,8 @@ export default function Marketplace() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Marketplace</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Browse skill listings and discover member profiles by name or skill.
+              Browse skill listings and discover member profiles by name or
+              skill.
             </p>
           </div>
           <button
@@ -307,7 +319,7 @@ export default function Marketplace() {
                     >
                       <div className="mb-4 flex items-center gap-3">
                         <img
-                          src={listing.owner?.avatar}
+                          src={`https://ui-avatars.com/api/?name=${listing.owner?.name}`}
                           alt={listing.owner?.name}
                           className="h-11 w-11 rounded-full bg-purple-100 object-cover"
                         />
@@ -330,13 +342,17 @@ export default function Marketplace() {
                           <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
                             Teaches
                           </span>
-                          <span className="text-gray-700">{listing.teachSkill}</span>
+                          <span className="text-gray-700">
+                            {listing.teachSkill}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2 text-sm">
                           <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
                             Wants
                           </span>
-                          <span className="text-gray-700">{listing.learnSkill}</span>
+                          <span className="text-gray-700">
+                            {listing.learnSkill}
+                          </span>
                         </div>
                       </div>
 
@@ -381,7 +397,8 @@ export default function Marketplace() {
                     Member Profiles
                   </span>
                   <p className="text-sm text-gray-500">
-                    Searchable profiles, even before a user posts a skill listing.
+                    Searchable profiles, even before a user posts a skill
+                    listing.
                   </p>
                 </div>
 
@@ -396,7 +413,7 @@ export default function Marketplace() {
                     >
                       <div className="mb-4 flex items-center gap-3">
                         <img
-                          src={profile.avatar}
+                          src={`https://ui-avatars.com/api/?name=${profile.name}`}
                           alt={profile.name}
                           className="h-11 w-11 rounded-full bg-purple-100 object-cover"
                         />
@@ -414,12 +431,15 @@ export default function Marketplace() {
                         {profile.headline || "Skill exchange member"}
                       </p>
                       <p className="mt-2 text-sm leading-relaxed text-gray-600">
-                        {profile.bio || "This member is still setting up the profile."}
+                        {profile.bio ||
+                          "This member is still setting up the profile."}
                       </p>
 
                       <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
                         <MapPin size={13} />
-                        <span>{profile.location || "Location not added yet"}</span>
+                        <span>
+                          {profile.location || "Location not added yet"}
+                        </span>
                       </div>
 
                       <div className="mt-4 space-y-3">
@@ -470,8 +490,8 @@ export default function Marketplace() {
 
                       <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl bg-gray-50 px-4 py-3 text-xs text-gray-500">
                         <span>
-                          Start a direct conversation even if this user has not posted
-                          a listing yet.
+                          Start a direct conversation even if this user has not
+                          posted a listing yet.
                         </span>
                         <button
                           onClick={() => handleStartChat(profile._id)}
@@ -566,7 +586,10 @@ export default function Marketplace() {
                 rows={4}
                 value={form.bio}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, bio: event.target.value }))
+                  setForm((current) => ({
+                    ...current,
+                    bio: event.target.value,
+                  }))
                 }
                 placeholder="Describe what you can teach and how you like to learn."
                 className="w-full resize-none rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-purple-300"
