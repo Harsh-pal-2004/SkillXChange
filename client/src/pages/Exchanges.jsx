@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Clock, CheckCircle, XCircle, ArrowLeftRight } from "lucide-react";
+import {
+  Clock,
+  CheckCircle,
+  XCircle,
+  ArrowLeftRight,
+  Star,
+} from "lucide-react";
 import { useAuth } from "@/context/useAuth";
 import API from "@/api/axios";
 
@@ -44,6 +50,7 @@ export default function Exchanges() {
   const [activeTab, setActiveTab] = useState("All");
   const [exchanges, setExchanges] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [submittingRatingId, setSubmittingRatingId] = useState("");
 
   useEffect(() => {
     const loadExchanges = async () => {
@@ -70,21 +77,44 @@ export default function Exchanges() {
 
   const stats = useMemo(
     () => ({
-      pending: exchanges.filter((exchange) => exchange.status === "pending").length,
-      accepted: exchanges.filter((exchange) => exchange.status === "accepted").length,
-      completed: exchanges.filter((exchange) => exchange.status === "completed").length,
-      rejected: exchanges.filter((exchange) => exchange.status === "rejected").length,
+      pending: exchanges.filter((exchange) => exchange.status === "pending")
+        .length,
+      accepted: exchanges.filter((exchange) => exchange.status === "accepted")
+        .length,
+      completed: exchanges.filter((exchange) => exchange.status === "completed")
+        .length,
+      rejected: exchanges.filter((exchange) => exchange.status === "rejected")
+        .length,
     }),
     [exchanges],
   );
 
   const updateStatus = async (exchangeId, status) => {
-    const response = await API.patch(`/api/exchanges/${exchangeId}`, { status });
+    const response = await API.patch(`/api/exchanges/${exchangeId}`, {
+      status,
+    });
     setExchanges((current) =>
       current.map((exchange) =>
         exchange._id === exchangeId ? response.data : exchange,
       ),
     );
+  };
+
+  const submitRating = async (exchangeId, score) => {
+    setSubmittingRatingId(exchangeId);
+    try {
+      const response = await API.post(`/api/exchanges/${exchangeId}/rating`, {
+        score,
+      });
+
+      setExchanges((current) =>
+        current.map((exchange) =>
+          exchange._id === exchangeId ? response.data : exchange,
+        ),
+      );
+    } finally {
+      setSubmittingRatingId("");
+    }
   };
 
   return (
@@ -99,9 +129,21 @@ export default function Exchanges() {
 
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            { label: "Pending", value: stats.pending, color: "text-yellow-600" },
-            { label: "Accepted", value: stats.accepted, color: "text-green-600" },
-            { label: "Completed", value: stats.completed, color: "text-purple-600" },
+            {
+              label: "Pending",
+              value: stats.pending,
+              color: "text-yellow-600",
+            },
+            {
+              label: "Accepted",
+              value: stats.accepted,
+              color: "text-green-600",
+            },
+            {
+              label: "Completed",
+              value: stats.completed,
+              color: "text-purple-600",
+            },
             { label: "Rejected", value: stats.rejected, color: "text-red-500" },
           ].map((stat) => (
             <div
@@ -147,6 +189,18 @@ export default function Exchanges() {
               const otherUser = isRecipient
                 ? exchange.requester
                 : exchange.recipient;
+              const ratings = Array.isArray(exchange.ratings)
+                ? exchange.ratings
+                : [];
+              const myRating = ratings.find(
+                (rating) =>
+                  String(rating?.rater?._id || rating?.rater) ===
+                  String(user?._id),
+              );
+              const canRate =
+                exchange.status === "completed" &&
+                Boolean(user?._id) &&
+                !myRating;
 
               return (
                 <motion.div
@@ -194,13 +248,17 @@ export default function Exchanges() {
                       {exchange.status === "pending" && isRecipient ? (
                         <>
                           <button
-                            onClick={() => updateStatus(exchange._id, "accepted")}
+                            onClick={() =>
+                              updateStatus(exchange._id, "accepted")
+                            }
                             className="rounded-full bg-green-600 px-3 py-1.5 text-xs font-semibold text-white"
                           >
                             Accept
                           </button>
                           <button
-                            onClick={() => updateStatus(exchange._id, "rejected")}
+                            onClick={() =>
+                              updateStatus(exchange._id, "rejected")
+                            }
                             className="rounded-full bg-red-500 px-3 py-1.5 text-xs font-semibold text-white"
                           >
                             Reject
@@ -210,7 +268,9 @@ export default function Exchanges() {
 
                       {exchange.status === "accepted" && isRecipient ? (
                         <button
-                          onClick={() => updateStatus(exchange._id, "completed")}
+                          onClick={() =>
+                            updateStatus(exchange._id, "completed")
+                          }
                           className="rounded-full bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white"
                         >
                           Mark Complete
@@ -235,6 +295,35 @@ export default function Exchanges() {
                     <p className="mt-4 rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-600">
                       {exchange.message}
                     </p>
+                  ) : null}
+
+                  {exchange.status === "completed" ? (
+                    <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
+                      {myRating ? (
+                        <p className="text-sm text-gray-600">
+                          You rated this exchange {myRating.score}/5.
+                        </p>
+                      ) : canRate ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-medium text-gray-700">
+                            Rate your experience:
+                          </p>
+                          {[1, 2, 3, 4, 5].map((score) => (
+                            <button
+                              key={score}
+                              onClick={() => submitRating(exchange._id, score)}
+                              disabled={submittingRatingId === exchange._id}
+                              className="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-xs font-semibold text-amber-600 disabled:opacity-60"
+                            >
+                              <span className="inline-flex items-center gap-1">
+                                <Star size={12} />
+                                {score}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   ) : null}
                 </motion.div>
               );

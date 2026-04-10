@@ -25,6 +25,26 @@ const exchangeSchema = new mongoose.Schema(
       enum: ["pending", "accepted", "rejected", "completed"],
       default: "pending",
     },
+    ratings: {
+      type: [
+        {
+          rater: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+          },
+          ratedUser: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+          },
+          score: { type: Number, required: true, min: 1, max: 5 },
+          comment: { type: String, default: "", trim: true, maxlength: 500 },
+          createdAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
   },
   { timestamps: true },
 );

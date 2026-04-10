@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Exchange from "../models/Exchange.js";
 import SkillListing from "../models/SkillListing.js";
 import Conversation from "../models/Conversation.js";
+import User from "../models/User.js";
 import { requireAuth } from "../middleware/auth.js";
 import { broadcastPublicStats } from "../utils/publicStats.js";
 
@@ -14,6 +15,8 @@ router.get("/", requireAuth, async (req, res) => {
   })
     .populate("requester", "name email avatar")
     .populate("recipient", "name email avatar")
+    .populate("ratings.rater", "name avatar")
+    .populate("ratings.ratedUser", "name avatar")
     .populate({
       path: "listing",
       populate: { path: "owner", select: "name avatar" },
@@ -131,12 +134,97 @@ router.patch("/:id", requireAuth, async (req, res) => {
   const populatedExchange = await Exchange.findById(exchange._id)
     .populate("requester", "name email avatar")
     .populate("recipient", "name email avatar")
+    .populate("ratings.rater", "name avatar")
+    .populate("ratings.ratedUser", "name avatar")
     .populate({
       path: "listing",
       populate: { path: "owner", select: "name avatar" },
     });
 
   res.json(populatedExchange);
+});
+
+router.post("/:id/rating", requireAuth, async (req, res) => {
+  try {
+    const { score, comment = "" } = req.body;
+    const normalizedScore = Number(score);
+    const normalizedComment = String(comment || "").trim();
+
+    if (!Number.isInteger(normalizedScore) || normalizedScore < 1 || normalizedScore > 5) {
+      return res.status(400).json({ message: "Score must be an integer between 1 and 5" });
+    }
+
+    if (normalizedComment.length > 500) {
+      return res.status(400).json({ message: "Comment is too long" });
+    }
+
+    const exchange = await Exchange.findById(req.params.id);
+    if (!exchange) {
+      return res.status(404).json({ message: "Exchange not found" });
+    }
+
+    const isParticipant =
+      String(exchange.requester) === String(req.user._id) ||
+      String(exchange.recipient) === String(req.user._id);
+
+    if (!isParticipant) {
+      return res.status(403).json({ message: "Not allowed" });
+    }
+
+    if (exchange.status !== "completed") {
+      return res.status(400).json({ message: "You can only rate completed exchanges" });
+    }
+
+    const existingRatings = Array.isArray(exchange.ratings) ? exchange.ratings : [];
+
+    const alreadyRated = existingRatings.some(
+      (rating) => String(rating.rater) === String(req.user._id),
+    );
+
+    if (alreadyRated) {
+      return res.status(409).json({ message: "You have already rated this exchange" });
+    }
+
+    const ratedUserId =
+      String(exchange.requester) === String(req.user._id)
+        ? exchange.recipient
+        : exchange.requester;
+
+    const ratedUser = await User.findById(ratedUserId);
+    if (!ratedUser) {
+      return res.status(404).json({ message: "Rated user not found" });
+    }
+
+    exchange.ratings.push({
+      rater: req.user._id,
+      ratedUser: ratedUser._id,
+      score: normalizedScore,
+      comment: normalizedComment,
+    });
+
+    await exchange.save();
+
+    const nextCount = (ratedUser.ratingCount || 0) + 1;
+    const weightedTotal = (ratedUser.ratingAverage || 0) * (ratedUser.ratingCount || 0);
+    ratedUser.ratingCount = nextCount;
+    ratedUser.ratingAverage = Number(((weightedTotal + normalizedScore) / nextCount).toFixed(2));
+    await ratedUser.save();
+
+    const populatedExchange = await Exchange.findById(exchange._id)
+      .populate("requester", "name email avatar")
+      .populate("recipient", "name email avatar")
+      .populate("ratings.rater", "name avatar")
+      .populate("ratings.ratedUser", "name avatar")
+      .populate({
+        path: "listing",
+        populate: { path: "owner", select: "name avatar" },
+      });
+
+    await broadcastPublicStats(req.app.get("io"));
+    return res.json(populatedExchange);
+  } catch {
+    return res.status(500).json({ message: "Failed to submit rating" });
+  }
 });
 
 export default router;

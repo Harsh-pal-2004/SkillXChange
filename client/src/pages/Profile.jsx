@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Edit, Plus, X, MapPin, Mail, Save, BookOpen } from "lucide-react";
+import {
+  Edit,
+  Plus,
+  X,
+  MapPin,
+  Mail,
+  Save,
+  BookOpen,
+  Star,
+} from "lucide-react";
 import { useAuth } from "@/context/useAuth";
 import API from "@/api/axios";
 
@@ -15,6 +24,8 @@ export default function Profile() {
     location: "",
     teachSkills: [],
     learnSkills: [],
+    ratingAverage: 0,
+    ratingCount: 0,
   });
   const [newTeach, setNewTeach] = useState("");
   const [newLearn, setNewLearn] = useState("");
@@ -30,6 +41,8 @@ export default function Profile() {
           location: response.data.location || "",
           teachSkills: response.data.teachSkills || [],
           learnSkills: response.data.learnSkills || [],
+          ratingAverage: response.data.ratingAverage || 0,
+          ratingCount: response.data.ratingCount || 0,
         });
       } finally {
         setLoading(false);
@@ -68,6 +81,8 @@ export default function Profile() {
       location: response.data.location || "",
       teachSkills: response.data.teachSkills || [],
       learnSkills: response.data.learnSkills || [],
+      ratingAverage: response.data.ratingAverage || 0,
+      ratingCount: response.data.ratingCount || 0,
     });
     setEditing(false);
     refreshUser();
@@ -131,7 +146,9 @@ export default function Profile() {
                     className="mt-3 w-full max-w-md rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-purple-300"
                   />
                 ) : (
-                  <p className="mt-2 text-sm text-gray-500">{profile.headline}</p>
+                  <p className="mt-2 text-sm text-gray-500">
+                    {profile.headline}
+                  </p>
                 )}
 
                 <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-gray-400">
@@ -155,6 +172,14 @@ export default function Profile() {
                     ) : (
                       <span>{profile.location}</span>
                     )}
+                  </div>
+                  <div className="flex items-center gap-2 text-amber-500">
+                    <Star size={14} />
+                    <span className="text-gray-500">
+                      {profile.ratingCount > 0
+                        ? `${profile.ratingAverage.toFixed(1)} (${profile.ratingCount} ratings)`
+                        : "No ratings yet"}
+                    </span>
                   </div>
                 </div>
 
@@ -261,7 +286,9 @@ export default function Profile() {
                     className="flex-1 rounded-full border border-gray-200 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-300"
                   />
                   <button
-                    onClick={() => addSkill(group.key, group.value, group.setter)}
+                    onClick={() =>
+                      addSkill(group.key, group.value, group.setter)
+                    }
                     className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-600 text-white"
                   >
                     <Plus size={14} />
