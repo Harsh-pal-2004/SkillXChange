@@ -27,68 +27,22 @@ dotenv.config({ path: path.join(__dirname, ".env") });
 const app = express();
 const server = http.createServer(app);
 
-// ---- CORS helpers ----
-const trimTrailingSlash = (origin = "") => origin.replace(/\/$/, "");
-const defaultOrigins = [
-	"http://localhost:5173",
-	"https://skill-x-change-mu.vercel.app",
-];
-
-const envOrigins = (process.env.CLIENT_URL || "")
-	.split(",")
-	.map((origin) => origin.trim())
-	.filter(Boolean);
-
-const allowedOrigins = Array.from(
-	new Set([...defaultOrigins, ...envOrigins].map(trimTrailingSlash)),
-);
-
-const isAllowedOrigin = (origin) => {
-	if (!origin) return true;
-
-	const normalizedOrigin = trimTrailingSlash(origin);
-	if (allowedOrigins.includes(normalizedOrigin)) return true;
-
-	// Allow Vercel preview deployments when credentials are required.
-	return /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(normalizedOrigin);
-};
-
-const corsOptions = {
-	origin: (origin, callback) => {
-		if (isAllowedOrigin(origin)) {
-			callback(null, true);
-			return;
-		}
-
-		callback(new Error("Not allowed by CORS"));
-	},
-	methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-	allowedHeaders: ["Content-Type", "Authorization"],
-	credentials: true,
-	optionsSuccessStatus: 204,
-};
-
 // ---- Realtime server ----
 const io = new Server(server, {
-	cors: {
-		origin: (origin, callback) => {
-			if (isAllowedOrigin(origin)) {
-				callback(null, true);
-				return;
-			}
-
-			callback(new Error("Not allowed by Socket.IO CORS"));
-		},
-		credentials: true,
-		methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-		allowedHeaders: ["Content-Type", "Authorization"],
-	},
+  cors: {
+    origin: true,
+    credentials: true,
+  },
 });
 app.set("io", io);
 
 // ---- Middleware ----
-app.use(cors(corsOptions));
-app.options(/.*/, cors(corsOptions));
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  }),
+);
 app.use(express.json());
 app.use(cookieParser());
 app.set("trust proxy", 1);
@@ -104,68 +58,69 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/public", publicRoutes);
 
 // ---- Database ----
-mongoose.connect(process.env.MONGO_URI)
-	.then(async () => {
-		await User.syncIndexes();
-		console.log("MongoDB connected");
-	})
-	.catch((err) => console.log("MongoDB error:", err));
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(async () => {
+    await User.syncIndexes();
+    console.log("MongoDB connected");
+  })
+  .catch((err) => console.log("MongoDB error:", err));
 
 // ---- Health route ----
 app.get("/", (req, res) => {
-	res.send("Server is running");
+  res.send("Server is running");
 });
 
 // ---- Socket events ----
 io.on("connection", (socket) => {
-	const { userId } = socket.handshake.auth || {};
-	console.log("User connected:", socket.id, userId || "anonymous");
+  const { userId } = socket.handshake.auth || {};
+  console.log("User connected:", socket.id, userId || "anonymous");
 
-	if (userId) {
-		socket.join(`user:${userId}`);
-	}
+  if (userId) {
+    socket.join(`user:${userId}`);
+  }
 
-	socket.on("conversation:join", (conversationId) => {
-		if (!conversationId) return;
-		socket.join(`conversation:${conversationId}`);
-	});
+  socket.on("conversation:join", (conversationId) => {
+    if (!conversationId) return;
+    socket.join(`conversation:${conversationId}`);
+  });
 
-	socket.on("conversation:leave", (conversationId) => {
-		if (!conversationId) return;
-		socket.leave(`conversation:${conversationId}`);
-	});
+  socket.on("conversation:leave", (conversationId) => {
+    if (!conversationId) return;
+    socket.leave(`conversation:${conversationId}`);
+  });
 
-	socket.on("public:stats:subscribe", async () => {
-		socket.join("public:stats");
-		socket.emit("public:stats", await getPublicStats());
-	});
+  socket.on("public:stats:subscribe", async () => {
+    socket.join("public:stats");
+    socket.emit("public:stats", await getPublicStats());
+  });
 
-	socket.on("public:stats:unsubscribe", () => {
-		socket.leave("public:stats");
-	});
+  socket.on("public:stats:unsubscribe", () => {
+    socket.leave("public:stats");
+  });
 
-	const relayCallEvent = (eventName) => {
-		socket.on(eventName, (payload = {}) => {
-			if (!payload.conversationId) return;
+  const relayCallEvent = (eventName) => {
+    socket.on(eventName, (payload = {}) => {
+      if (!payload.conversationId) return;
 
-			socket.to(`conversation:${payload.conversationId}`).emit(eventName, {
-				...payload,
-				fromUserId: userId,
-			});
-		});
-	};
+      socket.to(`conversation:${payload.conversationId}`).emit(eventName, {
+        ...payload,
+        fromUserId: userId,
+      });
+    });
+  };
 
-	[
-		"call:start",
-		"call:offer",
-		"call:answer",
-		"call:ice-candidate",
-		"call:end",
-	].forEach(relayCallEvent);
+  [
+    "call:start",
+    "call:offer",
+    "call:answer",
+    "call:ice-candidate",
+    "call:end",
+  ].forEach(relayCallEvent);
 
-	socket.on("disconnect", () => {
-		console.log("User disconnected:", socket.id);
-	});
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
 });
 
 const PORT = process.env.PORT || 5000;
