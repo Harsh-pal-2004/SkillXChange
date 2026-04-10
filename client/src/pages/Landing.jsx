@@ -35,6 +35,7 @@ export default function Landing() {
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [pendingApprovalId, setPendingApprovalId] = useState("");
   const [liveStats, setLiveStats] = useState({
     totalUsers: 0,
     totalExchanges: 0,
@@ -65,6 +66,68 @@ export default function Landing() {
     ],
     [liveStats],
   );
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const authToken = url.searchParams.get("authToken");
+    const authError = url.searchParams.get("authError");
+
+    if (!authToken && !authError) {
+      return;
+    }
+
+    // Clear one-time callback params immediately to avoid duplicate processing.
+    url.searchParams.delete("authToken");
+    url.searchParams.delete("authProvider");
+    url.searchParams.delete("authError");
+    window.history.replaceState({}, "", url.toString());
+
+    if (authToken) {
+      localStorage.setItem("token", authToken);
+      refreshUser({ silent: true }).then((result) => {
+        if (result?.success) {
+          setIsAuthOpen(false);
+          navigate("/dashboard", { replace: true });
+          return;
+        }
+
+        localStorage.removeItem("token");
+        setMode("login");
+        setError("Google login failed while validating your session.");
+        setIsAuthOpen(true);
+      });
+      return;
+    }
+
+    if (authError === "google_not_configured") {
+      setMode("login");
+      setError(
+        "Google login is currently unavailable. Please complete GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the server.",
+      );
+      setIsAuthOpen(true);
+      return;
+    }
+
+    if (authError === "google_session_conflict") {
+      const shouldTakeover = window.confirm(
+        "This account is already logged in on another device. Press OK to continue and sign out the previous session.",
+      );
+
+      if (shouldTakeover) {
+        window.location.href = `${import.meta.env.VITE_API_URL}/auth/google?forceNewSession=true`;
+        return;
+      }
+
+      setMode("login");
+      setError("Google login was cancelled because another device is active.");
+      setIsAuthOpen(true);
+      return;
+    }
+
+    setMode("login");
+    setError("Google login failed. Please try again.");
+    setIsAuthOpen(true);
+  }, [navigate, refreshUser]);
 
   useEffect(() => {
     let isMounted = true;
@@ -116,13 +179,14 @@ export default function Landing() {
     setForm(initialForm);
   };
 
-  const handleGoogleAuth = () => {
+  const handleGoogleAuth = ({ forceNewSession = false } = {}) => {
     if (user) {
       navigate("/dashboard");
       return;
     }
 
-    window.location.href = `${import.meta.env.VITE_API_URL}/auth/google`;
+    const suffix = forceNewSession ? "?forceNewSession=true" : "";
+    window.location.href = `${import.meta.env.VITE_API_URL}/auth/google${suffix}`;
   };
 
   const resolveApiMessage = (requestError, fallbackMessage) => {
@@ -138,10 +202,16 @@ export default function Landing() {
       let response;
 
       if (mode === "login") {
-        response = await API.post("/auth/login", {
+        const payload = {
           identifier: form.identifier,
           password: form.password,
-        });
+        };
+
+        if (pendingApprovalId) {
+          payload.approvalId = pendingApprovalId;
+        }
+
+        response = await API.post("/auth/login", payload);
       } else {
         response = await API.post("/auth/register", {
           name: form.name,
@@ -163,10 +233,59 @@ export default function Landing() {
       }
 
       setUser(authenticatedUser);
+      setPendingApprovalId("");
       await refreshUser({ silent: true });
       closeAuth();
       navigate("/dashboard");
     } catch (requestError) {
+      const isSessionConflict =
+        requestError?.response?.status === 409 &&
+        requestError?.response?.data?.code === "SESSION_CONFLICT";
+
+      if (isSessionConflict && mode === "login") {
+        const approvalIdFromServer =
+          requestError?.response?.data?.data?.approvalId || "";
+
+        const shouldTakeover = window.confirm(
+          "This account is active on another device. Press OK to sign out the previous session now. Press Cancel to approve from the existing session, then click Login again here.",
+        );
+
+        if (shouldTakeover) {
+          const takeoverResponse = await API.post("/auth/login", {
+            identifier: form.identifier,
+            password: form.password,
+            forceNewSession: true,
+          });
+
+          const takeoverUser = takeoverResponse?.data?.data || null;
+          const takeoverToken = takeoverResponse?.data?.token;
+
+          if (
+            !takeoverResponse?.data?.success ||
+            !takeoverUser ||
+            !takeoverToken
+          ) {
+            throw new Error(
+              takeoverResponse?.data?.message || "Session takeover failed.",
+            );
+          }
+
+          localStorage.setItem("token", takeoverToken);
+          setUser(takeoverUser);
+          setPendingApprovalId("");
+          await refreshUser({ silent: true });
+          closeAuth();
+          navigate("/dashboard");
+          return;
+        }
+
+        setPendingApprovalId(approvalIdFromServer);
+        setError(
+          "Approval request sent to your active session. Approve it there, then click Login again.",
+        );
+        return;
+      }
+
       setError(
         resolveApiMessage(
           requestError,

@@ -1,5 +1,14 @@
 import mongoose from "mongoose";
 
+const loginApprovalSchema = new mongoose.Schema(
+  {
+    id: { type: String, default: null },
+    expiresAt: { type: Date, default: null },
+    approved: { type: Boolean, default: false },
+  },
+  { _id: false },
+);
+
 const userSchema = new mongoose.Schema(
   {
     googleId: { type: String, unique: true, sparse: true, select: false },
@@ -25,6 +34,13 @@ const userSchema = new mongoose.Schema(
     headline: { type: String, default: "Skill exchange enthusiast" },
     teachSkills: { type: [String], default: [] },
     learnSkills: { type: [String], default: [] },
+    activeSessionId: { type: String, default: null, select: false },
+    activeSessionUpdatedAt: { type: Date, default: null, select: false },
+    pendingLoginApproval: {
+      type: loginApprovalSchema,
+      default: () => ({ id: null, expiresAt: null, approved: false }),
+      select: false,
+    },
   },
   { timestamps: true },
 );

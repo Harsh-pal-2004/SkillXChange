@@ -10,10 +10,14 @@ export const requireAuth = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(decoded.id).select("+activeSessionId");
 
     if (!user) {
       return res.status(401).json({ message: "User not found" });
+    }
+
+    if (!decoded.sid || !user.activeSessionId || decoded.sid !== user.activeSessionId) {
+      return res.status(401).json({ message: "Session expired. Please log in again." });
     }
 
     req.user = user;

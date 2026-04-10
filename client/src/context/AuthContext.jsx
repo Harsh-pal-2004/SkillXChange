@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import API from "@/api/axios";
 import AuthContext from "@/context/auth-context";
+import { connectSocket, disconnectSocket, socket } from "@/socket";
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -22,6 +23,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       const statusCode = error?.response?.status;
       if (statusCode === 401) {
+        localStorage.removeItem("token");
         setUser(null);
       }
 
@@ -40,11 +42,54 @@ export const AuthProvider = ({ children }) => {
     refreshUser({ silent: true });
   }, []);
 
+  useEffect(() => {
+    if (!user?._id) {
+      disconnectSocket();
+      return;
+    }
+
+    connectSocket(user._id);
+
+    const handleSessionRevoked = () => {
+      localStorage.removeItem("token");
+      setUser(null);
+    };
+
+    const handleTakeoverRequest = async (payload = {}) => {
+      const approvalId = payload?.approvalId;
+      if (!approvalId) {
+        return;
+      }
+
+      const approved = window.confirm(
+        "A new login attempt was detected for your account. Press OK to allow it, or Cancel to deny.",
+      );
+
+      try {
+        await API.post("/auth/session/approval", {
+          approvalId,
+          decision: approved ? "allow" : "deny",
+        });
+      } catch {
+        // If this fails, the new login can still proceed with explicit force takeover.
+      }
+    };
+
+    socket.on("session:revoked", handleSessionRevoked);
+    socket.on("session:takeover-request", handleTakeoverRequest);
+
+    return () => {
+      socket.off("session:revoked", handleSessionRevoked);
+      socket.off("session:takeover-request", handleTakeoverRequest);
+    };
+  }, [user?._id]);
+
   const logout = async () => {
     try {
       await API.get("/auth/logout");
     } finally {
       localStorage.removeItem("token");
+      disconnectSocket();
       setUser(null);
     }
   };
