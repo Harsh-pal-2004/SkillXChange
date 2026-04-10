@@ -44,10 +44,10 @@ export const AuthProvider = ({ children }) => {
     try {
       await API.get("/auth/logout");
     } finally {
+      localStorage.removeItem("token");
       setUser(null);
     }
   };
-
   return (
     <AuthContext.Provider
       value={{ user, setUser, loading, logout, refreshUser }}

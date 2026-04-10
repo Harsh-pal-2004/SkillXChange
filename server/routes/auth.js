@@ -7,29 +7,24 @@ import { createAvatarUrl } from "../utils/avatar.js";
 import { broadcastPublicStats } from "../utils/publicStats.js";
 
 const router = express.Router();
+
 const CLIENT_URL = ((process.env.CLIENT_URL || "http://localhost:5173")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean)[0] || "http://localhost:5173").replace(/\/$/, "");
-const isProduction = process.env.NODE_ENV === "production";
 
-// Cookie settings shared by login/register/google-auth.
-const authCookieOptions = {
-  httpOnly: true,
-  sameSite: isProduction ? "none" : "lax",
-  secure: isProduction,
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-};
+// ❌ Cookie system removed (not needed anymore)
 
 const normalizeText = (value = "") => String(value).trim();
 const normalizeEmail = (value = "") => normalizeText(value).toLowerCase();
 const normalizeUsername = (value = "") => normalizeText(value).toLowerCase();
 
-const sendSuccess = (res, { status = 200, message, data = null }) =>
+const sendSuccess = (res, { status = 200, message, data = null, token = null }) =>
   res.status(status).json({
     success: true,
     message,
     data,
+    token,
   });
 
 const sendError = (res, { status, message }) =>
@@ -39,34 +34,14 @@ const sendError = (res, { status, message }) =>
     data: null,
   });
 
-const clearLegacySessionCookie = (res) => {
-  res.clearCookie("connect.sid", {
-    httpOnly: true,
-    sameSite: authCookieOptions.sameSite,
-    secure: authCookieOptions.secure,
-  });
-};
-
-const issueAuthCookie = (res, user) => {
-  const token = jwt.sign(
-    { id: user._id, email: user.email, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: "7d" },
-  );
-
-  res.cookie("token", token, authCookieOptions);
-};
-
 const getPublicUser = async (userId) => User.findById(userId);
 
+
+
+// ================= REGISTER =================
 router.post("/register", async (req, res) => {
   try {
-    const {
-      name = "",
-      username = "",
-      email = "",
-      password = "",
-    } = req.body;
+    const { name = "", username = "", email = "", password = "" } = req.body;
 
     const normalizedName = normalizeText(name);
     const normalizedUsername = normalizeUsername(username);
@@ -85,9 +60,7 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    const existingEmailUser = await User.findOne({ email: normalizedEmail }).select(
-      "+passwordHash",
-    );
+    const existingEmailUser = await User.findOne({ email: normalizedEmail });
     if (existingEmailUser) {
       return sendError(res, {
         status: 409,
@@ -97,7 +70,7 @@ router.post("/register", async (req, res) => {
 
     const existingUsernameUser = await User.findOne({
       username: normalizedUsername,
-    }).select("+passwordHash");
+    });
 
     if (existingUsernameUser) {
       return sendError(res, {
@@ -118,14 +91,22 @@ router.post("/register", async (req, res) => {
       learnSkills: [],
     });
 
-    clearLegacySessionCookie(res);
-    issueAuthCookie(res, user);
+    // ✅ JWT TOKEN
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
     await broadcastPublicStats(req.app.get("io"));
+
     const publicUser = await getPublicUser(user._id);
+
     return sendSuccess(res, {
       status: 201,
       message: "Signup successful",
       data: publicUser,
+      token,
     });
   } catch (error) {
     console.error("Register failed:", error);
@@ -136,6 +117,9 @@ router.post("/register", async (req, res) => {
   }
 });
 
+
+
+// ================= LOGIN =================
 router.post("/login", async (req, res) => {
   try {
     const { identifier = "", password = "" } = req.body;
@@ -149,20 +133,16 @@ router.post("/login", async (req, res) => {
     }
 
     const user = await User.findOne({
-      $or: [{ email: normalizedIdentifier }, { username: normalizedIdentifier }],
+      $or: [
+        { email: normalizedIdentifier },
+        { username: normalizedIdentifier },
+      ],
     }).select("+passwordHash");
 
     if (!user) {
       return sendError(res, {
         status: 404,
         message: "No account found, please sign up",
-      });
-    }
-
-    if (!user.passwordHash) {
-      return sendError(res, {
-        status: 400,
-        message: "This account uses Gmail sign-in. Please continue with Gmail.",
       });
     }
 
@@ -173,12 +153,19 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    clearLegacySessionCookie(res);
-    issueAuthCookie(res, user);
+    // ✅ JWT TOKEN
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
     const publicUser = await getPublicUser(user._id);
+
     return sendSuccess(res, {
       message: "Login successful",
       data: publicUser,
+      token,
     });
   } catch (error) {
     console.error("Login failed:", error);
@@ -189,13 +176,14 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Initiate Google OAuth
+
+
+// ================= GOOGLE =================
 router.get(
   "/google",
   passport.authenticate("google", { scope: ["profile", "email"] }),
 );
 
-// Google OAuth callback
 router.get(
   "/google/callback",
   passport.authenticate("google", { failureRedirect: "/", session: false }),
@@ -205,7 +193,6 @@ router.get(
         return res.redirect(`${CLIENT_URL}/`);
       }
 
-      issueAuthCookie(res, req.user);
       await broadcastPublicStats(req.app.get("io"));
       return res.redirect(`${CLIENT_URL}/dashboard`);
     } catch (error) {
@@ -215,9 +202,11 @@ router.get(
   },
 );
 
-// Get current user
+
+
+// ================= ME =================
 router.get("/me", async (req, res) => {
-  const token = req.cookies.token;
+  const token = req.headers.authorization?.split(" ")[1];
 
   if (!token) {
     return sendError(res, {
@@ -249,14 +238,10 @@ router.get("/me", async (req, res) => {
   }
 });
 
-// Logout
+
+
+// ================= LOGOUT =================
 router.get("/logout", (req, res) => {
-  res.clearCookie("token", {
-    httpOnly: true,
-    sameSite: authCookieOptions.sameSite,
-    secure: authCookieOptions.secure,
-  });
-  clearLegacySessionCookie(res);
   return sendSuccess(res, {
     message: "Logged out",
     data: null,

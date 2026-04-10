@@ -122,7 +122,7 @@ export default function Landing() {
       return;
     }
 
-    window.location.href = "https://skillxchange-p4kp.onrender.com/auth/google";
+    window.location.href = `${import.meta.env.VITE_API_URL}/auth/google`;
   };
 
   const resolveApiMessage = (requestError, fallbackMessage) => {
@@ -152,11 +152,16 @@ export default function Landing() {
       }
 
       const authenticatedUser = response?.data?.data || null;
+
+      const token = response?.data?.token;
+      if (token) {
+        localStorage.setItem("token", token);
+      }
+
       if (!response?.data?.success || !authenticatedUser) {
         throw new Error(response?.data?.message || "Authentication failed.");
       }
 
-      // Update UI immediately, then verify with /auth/me in background.
       setUser(authenticatedUser);
       await refreshUser({ silent: true });
       closeAuth();
