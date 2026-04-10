@@ -2,6 +2,9 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import User from "../models/User.js";
 import { createAvatarUrl } from "../utils/avatar.js";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const GOOGLE_CALLBACK_URL =
   process.env.GOOGLE_CALLBACK_URL ||
@@ -28,7 +31,9 @@ passport.use(
             googleId: profile.id,
             name: profile.displayName,
             email,
-            avatar: profile.photos?.[0]?.value || createAvatarUrl(profile.displayName),
+            avatar:
+              profile.photos?.[0]?.value ||
+              createAvatarUrl(profile.displayName),
             headline: "Excited to exchange skills",
             bio: "Here to learn new things and help others grow.",
             teachSkills: [],
@@ -49,8 +54,8 @@ passport.use(
       } catch (err) {
         return done(err, null);
       }
-    }
-  )
+    },
+  ),
 );
 
 passport.serializeUser((user, done) => done(null, user.id));
