@@ -1,4 +1,5 @@
 import express from "express";
+import mongoose from "mongoose";
 import User from "../models/User.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -78,6 +79,26 @@ router.patch("/me", requireAuth, async (req, res) => {
     return res.json(req.user);
   } catch (error) {
     return res.status(500).json({ message: "Failed to update profile" });
+  }
+});
+
+router.get("/:id", requireAuth, async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    const user = await User.findById(req.params.id).select(
+      "name username email avatar headline bio location teachSkills learnSkills ratingAverage ratingCount createdAt",
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.json(user);
+  } catch {
+    return res.status(500).json({ message: "Failed to load user profile" });
   }
 });
 

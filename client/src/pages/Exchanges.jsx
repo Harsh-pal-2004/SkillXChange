@@ -288,6 +288,15 @@ export default function Exchanges() {
                           Message
                         </button>
                       ) : null}
+
+                      {otherUser?._id ? (
+                        <button
+                          onClick={() => navigate(`/profile/${otherUser._id}`)}
+                          className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600"
+                        >
+                          View Profile
+                        </button>
+                      ) : null}
                     </div>
                   </div>
 

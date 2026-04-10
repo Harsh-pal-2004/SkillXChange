@@ -8,6 +8,7 @@ import Marketplace from "@/pages/Marketplace";
 import Exchanges from "@/pages/Exchanges";
 import Messages from "@/pages/Messages";
 import Profile from "@/pages/Profile";
+import PublicProfile from "@/pages/PublicProfile";
 
 // Layout
 import AppLayout from "@/components/layout/AppLayout";
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="/exchanges" element={<Exchanges />} />
         <Route path="/messages" element={<Messages />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/profile/:userId" element={<PublicProfile />} />
       </Route>
     </Routes>
   );
