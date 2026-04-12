@@ -29,7 +29,7 @@ const feedbackSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-feedbackSchema.index({ sender: 1, recipient: 1, createdAt: -1 });
+feedbackSchema.index({ sender: 1, recipient: 1 }, { unique: true });
 feedbackSchema.index({ recipient: 1, createdAt: -1 });
 
 export default mongoose.model("Feedback", feedbackSchema, "feedback");

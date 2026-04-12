@@ -20,9 +20,22 @@ export default function PublicProfile() {
     score: 5,
     comment: "",
   });
+  const [myFeedbackId, setMyFeedbackId] = useState(null);
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [deletingFeedback, setDeletingFeedback] = useState(false);
   const [feedbackError, setFeedbackError] = useState("");
   const [feedbackNotice, setFeedbackNotice] = useState("");
+
+  const resolveMyFeedback = (items = []) => {
+    if (!user?._id) {
+      return null;
+    }
+
+    return (
+      items.find((item) => String(item?.sender?._id) === String(user._id)) ||
+      null
+    );
+  };
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -39,13 +52,26 @@ export default function PublicProfile() {
           const feedbackResponse = await API.get(
             `/api/feedback/users/${userId}`,
           );
-          setFeedback(feedbackResponse.data.feedback || []);
+          const feedbackItems = feedbackResponse.data.feedback || [];
+          setFeedback(feedbackItems);
           setFeedbackSummary(
             feedbackResponse.data.summary || {
               averageScore: 0,
               totalFeedback: 0,
             },
           );
+
+          const existingFeedback = resolveMyFeedback(feedbackItems);
+          if (existingFeedback) {
+            setMyFeedbackId(existingFeedback._id);
+            setFeedbackForm({
+              score: existingFeedback.score || 5,
+              comment: existingFeedback.comment || "",
+            });
+          } else {
+            setMyFeedbackId(null);
+            setFeedbackForm({ score: 5, comment: "" });
+          }
         } catch {
           setFeedbackError("Feedback could not be loaded right now.");
         }
@@ -59,7 +85,7 @@ export default function PublicProfile() {
     };
 
     loadProfile();
-  }, [userId]);
+  }, [userId, user?._id]);
 
   const submitFeedback = async () => {
     if (!user || !userId || String(user._id) === String(userId)) {
@@ -76,15 +102,23 @@ export default function PublicProfile() {
         comment: feedbackForm.comment,
       });
 
-      setFeedback(response.data.feedback || []);
+      const feedbackItems = response.data.feedback || [];
+      setFeedback(feedbackItems);
       setFeedbackSummary(
         response.data.summary || {
           averageScore: 0,
           totalFeedback: 0,
         },
       );
-      setFeedbackNotice("Feedback saved successfully.");
-      setFeedbackForm({ score: 5, comment: "" });
+      const existingFeedback = resolveMyFeedback(feedbackItems);
+      setMyFeedbackId(
+        existingFeedback?._id || response.data.userFeedbackId || null,
+      );
+      setFeedbackNotice(
+        existingFeedback
+          ? "Feedback updated successfully."
+          : "Feedback saved successfully.",
+      );
       setProfile((current) =>
         current
           ? {
@@ -102,6 +136,48 @@ export default function PublicProfile() {
       );
     } finally {
       setSubmittingFeedback(false);
+    }
+  };
+
+  const deleteFeedback = async () => {
+    if (!user || !userId || !myFeedbackId) {
+      return;
+    }
+
+    setDeletingFeedback(true);
+    setFeedbackError("");
+    setFeedbackNotice("");
+
+    try {
+      const response = await API.delete(`/api/feedback/users/${userId}`);
+      const feedbackItems = response.data.feedback || [];
+      setFeedback(feedbackItems);
+      setFeedbackSummary(
+        response.data.summary || {
+          averageScore: 0,
+          totalFeedback: 0,
+        },
+      );
+      setMyFeedbackId(null);
+      setFeedbackForm({ score: 5, comment: "" });
+      setFeedbackNotice("Feedback deleted successfully.");
+      setProfile((current) =>
+        current
+          ? {
+              ...current,
+              feedbackAverage:
+                response.data.summary?.averageScore ?? current.feedbackAverage,
+              feedbackCount:
+                response.data.summary?.totalFeedback ?? current.feedbackCount,
+            }
+          : current,
+      );
+    } catch (requestError) {
+      setFeedbackError(
+        requestError?.response?.data?.message || "Failed to delete feedback.",
+      );
+    } finally {
+      setDeletingFeedback(false);
     }
   };
 
@@ -197,14 +273,30 @@ export default function PublicProfile() {
                 </div>
 
                 {user && String(user._id) !== String(userId) ? (
-                  <button
-                    onClick={submitFeedback}
-                    disabled={submittingFeedback}
-                    className="inline-flex items-center gap-2 rounded-full bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <Send size={14} />
-                    {submittingFeedback ? "Submitting..." : "Save Feedback"}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {myFeedbackId ? (
+                      <button
+                        onClick={deleteFeedback}
+                        disabled={deletingFeedback || submittingFeedback}
+                        className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {deletingFeedback ? "Deleting..." : "Delete"}
+                      </button>
+                    ) : null}
+
+                    <button
+                      onClick={submitFeedback}
+                      disabled={submittingFeedback || deletingFeedback}
+                      className="inline-flex items-center gap-2 rounded-full bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Send size={14} />
+                      {submittingFeedback
+                        ? "Saving..."
+                        : myFeedbackId
+                          ? "Update Feedback"
+                          : "Save Feedback"}
+                    </button>
+                  </div>
                 ) : null}
               </div>
 

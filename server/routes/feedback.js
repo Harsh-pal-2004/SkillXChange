@@ -88,21 +88,68 @@ router.post("/users/:userId", requireAuth, async (req, res) => {
       return res.status(400).json({ message: "Comment is too long" });
     }
 
-    await Feedback.create({
-      sender: req.user._id,
-      recipient: recipient._id,
-      score,
-      comment,
-    });
+    const updatedFeedback = await Feedback.findOneAndUpdate(
+      { sender: req.user._id, recipient: recipient._id },
+      {
+        sender: req.user._id,
+        recipient: recipient._id,
+        score,
+        comment,
+      },
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert: true,
+      },
+    );
 
     const summary = await syncUserFeedbackStats(recipient._id);
     const feedback = await Feedback.find({ recipient: recipient._id })
       .populate("sender", "name avatar headline")
       .sort({ createdAt: -1 });
 
-    return res.status(201).json({ feedback, summary });
-  } catch {
+    return res.status(200).json({
+      feedback,
+      summary,
+      userFeedbackId: updatedFeedback?._id || null,
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({ message: "You have already left feedback for this user" });
+    }
+
     return res.status(500).json({ message: "Failed to submit feedback" });
+  }
+});
+
+router.delete("/users/:userId", requireAuth, async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.userId)) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    const recipient = await User.findById(req.params.userId);
+    if (!recipient) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const deletedFeedback = await Feedback.findOneAndDelete({
+      sender: req.user._id,
+      recipient: recipient._id,
+    });
+
+    if (!deletedFeedback) {
+      return res.status(404).json({ message: "No feedback found to delete" });
+    }
+
+    const summary = await syncUserFeedbackStats(recipient._id);
+    const feedback = await Feedback.find({ recipient: recipient._id })
+      .populate("sender", "name avatar headline")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({ feedback, summary });
+  } catch {
+    return res.status(500).json({ message: "Failed to delete feedback" });
   }
 });
 
