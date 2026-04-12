@@ -22,6 +22,11 @@ const messageSchema = new mongoose.Schema(
       startedAt: { type: Date, default: null },
       endedAt: { type: Date, default: null },
       durationSeconds: { type: Number, default: null },
+      outcome: {
+        type: String,
+        enum: ["completed", "declined", "missed", "canceled"],
+        default: "completed",
+      },
     },
   },
   { timestamps: true },

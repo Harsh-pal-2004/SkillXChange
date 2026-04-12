@@ -35,6 +35,20 @@ export const normalizeMessage = (item) => ({
 });
 
 export const getCallMessageLabel = (item) => {
+  const outcome = item.metadata?.outcome;
+
+  if (outcome === "declined") {
+    return "Call declined";
+  }
+
+  if (outcome === "missed") {
+    return "Missed call";
+  }
+
+  if (outcome === "canceled") {
+    return "Call canceled";
+  }
+
   const parts = [];
 
   if (item.metadata?.startedAt) {

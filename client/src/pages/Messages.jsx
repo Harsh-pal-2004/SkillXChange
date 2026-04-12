@@ -280,8 +280,12 @@ export default function Messages() {
     );
   };
 
-  const createCallSummaryMessage = async ({ conversationId, startedAt }) => {
-    if (!conversationId || !startedAt || callSummaryLoggedRef.current) {
+  const createCallSummaryMessage = async ({
+    conversationId,
+    startedAt,
+    outcome = "completed",
+  }) => {
+    if (!conversationId || callSummaryLoggedRef.current) {
       return;
     }
 
@@ -299,9 +303,10 @@ export default function Messages() {
         {
           type: "call",
           metadata: {
-            startedAt,
-            endedAt,
-            durationSeconds,
+            startedAt: startedAt || null,
+            endedAt: startedAt ? endedAt : null,
+            durationSeconds: startedAt ? durationSeconds : null,
+            outcome,
           },
         },
       );
@@ -411,7 +416,16 @@ export default function Messages() {
       activeCallConversationIdRef.current ||
       selectedConversationRef.current?._id;
     const startedAt = callConnectedAtRef.current;
-    const shouldLogSummary = callStatus === "active" && Boolean(startedAt);
+    const outcome =
+      callStatus === "incoming"
+        ? "declined"
+        : callStatus === "calling"
+          ? "canceled"
+          : "completed";
+    const shouldLogSummary =
+      Boolean(conversationId) &&
+      (outcome !== "completed" ||
+        (callStatus === "active" && Boolean(startedAt)));
 
     if (conversationId) {
       socket.emit("call:end", { conversationId });
@@ -420,7 +434,11 @@ export default function Messages() {
     cleanupCall();
 
     if (shouldLogSummary) {
-      await createCallSummaryMessage({ conversationId, startedAt });
+      await createCallSummaryMessage({
+        conversationId,
+        startedAt,
+        outcome,
+      });
     }
   };
 

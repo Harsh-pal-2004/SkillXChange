@@ -7,7 +7,19 @@ import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
-const formatCallSummary = ({ startedAt, durationSeconds }) => {
+const formatCallSummary = ({ startedAt, durationSeconds, outcome }) => {
+  if (outcome === "declined") {
+    return "Call declined";
+  }
+
+  if (outcome === "missed") {
+    return "Missed call";
+  }
+
+  if (outcome === "canceled") {
+    return "Call canceled";
+  }
+
   const startTime = startedAt
     ? new Date(startedAt).toLocaleTimeString([], {
         hour: "2-digit",
@@ -179,12 +191,20 @@ router.post(
 
       if (type === "call") {
         const duration = metadata.durationSeconds;
+        const allowedOutcomes = ["completed", "declined", "missed", "canceled"];
         if (
           duration !== undefined &&
           duration !== null &&
           (!Number.isFinite(Number(duration)) || Number(duration) < 0)
         ) {
           return res.status(400).json({ message: "Invalid call duration" });
+        }
+
+        if (
+          metadata.outcome !== undefined &&
+          !allowedOutcomes.includes(metadata.outcome)
+        ) {
+          return res.status(400).json({ message: "Invalid call outcome" });
         }
       }
 
@@ -213,6 +233,7 @@ router.post(
                 startedAt: metadata.startedAt || null,
                 endedAt: metadata.endedAt || null,
                 durationSeconds: metadata.durationSeconds ?? null,
+                outcome: metadata.outcome || "completed",
               }
             : undefined,
       });

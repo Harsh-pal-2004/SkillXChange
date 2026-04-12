@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Search, Plus, X, MapPin, MessageSquare } from "lucide-react";
+import { Search, Plus, X } from "lucide-react";
 import API from "@/api/axios";
 import { useAuth } from "@/context/useAuth";
+import SkillMemberCard from "@/components/marketplace/SkillMemberCard";
 
 const categories = [
   "All",
@@ -322,72 +323,26 @@ export default function Marketplace() {
                       initial={{ opacity: 0, y: 14 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.25, delay: index * 0.04 }}
-                      className="flex h-full flex-col rounded-3xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-purple-200 hover:shadow-md"
+                      className="h-full"
                     >
-                      <div className="mb-4 flex items-center gap-3">
-                        <img
-                          src={
-                            listing.owner?.avatar ||
-                            `https://ui-avatars.com/api/?name=${encodeURIComponent(listing.owner?.name || "Skill Xchange User")}`
-                          }
-                          alt={listing.owner?.name}
-                          className="h-11 w-11 rounded-full bg-purple-100 object-cover"
-                        />
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-900">
-                            {listing.owner?.name}
-                          </p>
-                          <p className="truncate text-xs text-gray-400">
-                            {listing.owner?.headline || "Skill exchange member"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex-1 space-y-4">
-                        <p className="text-sm leading-relaxed text-gray-600">
-                          {listing.bio}
-                        </p>
-
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm">
-                            <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
-                              Teaches
-                            </span>
-                            <span className="text-gray-700">
-                              {listing.teachSkill}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                              Wants
-                            </span>
-                            <span className="text-gray-700">
-                              {listing.learnSkill}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-5 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="text-xs text-gray-400">
-                          {listing.category} • {listing.level}
-                        </p>
-                        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                          <button
-                            onClick={() =>
-                              handleViewProfile(listing.owner?._id)
-                            }
-                            className="rounded-full border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50"
-                          >
-                            View Profile
-                          </button>
-                          <button
-                            onClick={() => handleStartChat(listing.owner?._id)}
-                            className="flex h-9 w-9 items-center justify-center rounded-full border border-purple-200 text-purple-700 transition-colors hover:bg-purple-50"
-                            title={`Chat with ${listing.owner?.name}`}
-                          >
-                            <MessageSquare size={15} />
-                          </button>
+                      <SkillMemberCard
+                        name={listing.owner?.name || "Skill Xchange member"}
+                        username={listing.owner?.username || "member"}
+                        avatar={listing.owner?.avatar}
+                        bio={listing.bio}
+                        teachSkills={
+                          listing.teachSkill ? [listing.teachSkill] : []
+                        }
+                        learnSkills={
+                          listing.learnSkill ? [listing.learnSkill] : []
+                        }
+                        footerNote={`${listing.category} • ${listing.level}`}
+                        onViewProfile={() =>
+                          handleViewProfile(listing.owner?._id)
+                        }
+                        onMessage={() => handleStartChat(listing.owner?._id)}
+                        messageLabel={`Message ${listing.owner?.name || "member"}`}
+                        extraAction={
                           <button
                             onClick={() => handleRequestExchange(listing._id)}
                             disabled={
@@ -402,8 +357,8 @@ export default function Marketplace() {
                                 ? "Requested"
                                 : "Request Exchange"}
                           </button>
-                        </div>
-                      </div>
+                        }
+                      />
                     </motion.div>
                   ))}
                 </div>
@@ -429,109 +384,25 @@ export default function Marketplace() {
                       initial={{ opacity: 0, y: 14 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.25, delay: index * 0.04 }}
-                      className="flex h-full flex-col rounded-3xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-blue-200 hover:shadow-md"
+                      className="h-full"
                     >
-                      <div className="mb-4 flex items-center gap-3">
-                        <img
-                          src={
-                            profile.avatar ||
-                            `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || "Skill Xchange User")}`
-                          }
-                          alt={profile.name}
-                          className="h-11 w-11 rounded-full bg-purple-100 object-cover"
-                        />
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-gray-900">
-                            {profile.name}
-                          </p>
-                          <p className="truncate text-xs text-gray-400">
-                            @{profile.username || "member"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <p className="text-sm font-medium text-gray-700">
-                        {profile.headline || "Skill exchange member"}
-                      </p>
-                      <p className="mt-2 text-sm leading-relaxed text-gray-600">
-                        {profile.bio ||
-                          "This member is still setting up the profile."}
-                      </p>
-
-                      <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
-                        <MapPin size={13} />
-                        <span>
-                          {profile.location || "Location not added yet"}
-                        </span>
-                      </div>
-
-                      <div className="mt-4 flex-1 space-y-3">
-                        <div>
-                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            Can teach
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {(profile.teachSkills || []).length > 0 ? (
-                              profile.teachSkills.map((skill) => (
-                                <span
-                                  key={skill}
-                                  className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700"
-                                >
-                                  {skill}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-xs text-gray-400">
-                                No teaching skills added yet
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div>
-                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            Wants to learn
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {(profile.learnSkills || []).length > 0 ? (
-                              profile.learnSkills.map((skill) => (
-                                <span
-                                  key={skill}
-                                  className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700"
-                                >
-                                  {skill}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-xs text-gray-400">
-                                No learning goals added yet
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-5 flex flex-col gap-3 rounded-2xl bg-gray-50 px-4 py-3 text-xs text-gray-500 sm:flex-row sm:items-center sm:justify-between">
-                        <span>
-                          Start a direct conversation even if this user has not
-                          posted a listing yet.
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleViewProfile(profile._id)}
-                            className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-100"
-                          >
-                            View Profile
-                          </button>
-                          <button
-                            onClick={() => handleStartChat(profile._id)}
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-600 text-white transition-colors hover:bg-purple-700"
-                            title={`Chat with ${profile.name}`}
-                          >
-                            <MessageSquare size={15} />
-                          </button>
-                        </div>
-                      </div>
+                      <SkillMemberCard
+                        name={profile.name || "Skill Xchange member"}
+                        username={profile.username || "member"}
+                        avatar={profile.avatar}
+                        bio={
+                          profile.bio ||
+                          "This member is still setting up the profile."
+                        }
+                        teachSkills={profile.teachSkills || []}
+                        learnSkills={profile.learnSkills || []}
+                        footerNote={
+                          profile.location || "Location not added yet"
+                        }
+                        onViewProfile={() => handleViewProfile(profile._id)}
+                        onMessage={() => handleStartChat(profile._id)}
+                        messageLabel={`Message ${profile.name || "member"}`}
+                      />
                     </motion.div>
                   ))}
                 </div>
