@@ -322,48 +322,53 @@ export default function Marketplace() {
                       initial={{ opacity: 0, y: 14 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.25, delay: index * 0.04 }}
-                      className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-purple-200 hover:shadow-md"
+                      className="flex h-full flex-col rounded-3xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-purple-200 hover:shadow-md"
                     >
                       <div className="mb-4 flex items-center gap-3">
                         <img
-                          src={`https://ui-avatars.com/api/?name=${listing.owner?.name}`}
+                          src={
+                            listing.owner?.avatar ||
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(listing.owner?.name || "Skill Xchange User")}`
+                          }
                           alt={listing.owner?.name}
                           className="h-11 w-11 rounded-full bg-purple-100 object-cover"
                         />
-                        <div>
+                        <div className="min-w-0">
                           <p className="text-sm font-semibold text-gray-900">
                             {listing.owner?.name}
                           </p>
-                          <p className="text-xs text-gray-400">
+                          <p className="truncate text-xs text-gray-400">
                             {listing.owner?.headline || "Skill exchange member"}
                           </p>
                         </div>
                       </div>
 
-                      <p className="mb-4 text-sm leading-relaxed text-gray-600">
-                        {listing.bio}
-                      </p>
+                      <div className="flex-1 space-y-4">
+                        <p className="text-sm leading-relaxed text-gray-600">
+                          {listing.bio}
+                        </p>
 
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
-                            Teaches
-                          </span>
-                          <span className="text-gray-700">
-                            {listing.teachSkill}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                            Wants
-                          </span>
-                          <span className="text-gray-700">
-                            {listing.learnSkill}
-                          </span>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
+                              Teaches
+                            </span>
+                            <span className="text-gray-700">
+                              {listing.teachSkill}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                              Wants
+                            </span>
+                            <span className="text-gray-700">
+                              {listing.learnSkill}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="mt-5 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-xs text-gray-400">
                           {listing.category} • {listing.level}
                         </p>
@@ -424,11 +429,14 @@ export default function Marketplace() {
                       initial={{ opacity: 0, y: 14 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.25, delay: index * 0.04 }}
-                      className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-blue-200 hover:shadow-md"
+                      className="flex h-full flex-col rounded-3xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-blue-200 hover:shadow-md"
                     >
                       <div className="mb-4 flex items-center gap-3">
                         <img
-                          src={`https://ui-avatars.com/api/?name=${profile.name}`}
+                          src={
+                            profile.avatar ||
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || "Skill Xchange User")}`
+                          }
                           alt={profile.name}
                           className="h-11 w-11 rounded-full bg-purple-100 object-cover"
                         />
@@ -457,7 +465,7 @@ export default function Marketplace() {
                         </span>
                       </div>
 
-                      <div className="mt-4 space-y-3">
+                      <div className="mt-4 flex-1 space-y-3">
                         <div>
                           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
                             Can teach
