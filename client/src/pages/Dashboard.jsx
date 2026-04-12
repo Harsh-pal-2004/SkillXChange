@@ -38,11 +38,13 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gray-100 p-4 sm:p-6">
       <div className="mx-auto max-w-6xl space-y-6">
         <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-purple-600">Welcome back</p>
-          <h1 className="mt-2 text-3xl font-bold text-gray-900">{user?.name}</h1>
+          <h1 className="mt-2 text-2xl font-bold text-gray-900 sm:text-3xl">
+            {user?.name}
+          </h1>
           <p className="mt-2 max-w-2xl text-sm text-gray-500">
             Manage your skill listings, exchange requests, and live
             conversations from one simple workspace.
@@ -59,7 +61,7 @@ export default function Dashboard() {
             >
               <Icon size={18} className="text-purple-600" />
               <p className="mt-4 text-3xl font-bold text-gray-900">
-                {loading ? "..." : dashboard?.stats?.[key] ?? 0}
+                {loading ? "..." : (dashboard?.stats?.[key] ?? 0)}
               </p>
               <p className="mt-1 text-sm text-gray-500">{label}</p>
             </motion.div>
@@ -95,14 +97,15 @@ export default function Dashboard() {
                 dashboard.suggestedListings.map((listing) => (
                   <div
                     key={listing._id}
-                    className="flex items-center justify-between rounded-2xl border border-gray-100 p-4"
+                    className="flex flex-col gap-3 rounded-2xl border border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div>
                       <p className="font-semibold text-gray-900">
                         {listing.owner?.name}
                       </p>
                       <p className="mt-1 text-sm text-gray-600">
-                        Teaches {listing.teachSkill} and wants {listing.learnSkill}
+                        Teaches {listing.teachSkill} and wants{" "}
+                        {listing.learnSkill}
                       </p>
                       <p className="mt-1 text-xs text-gray-400">
                         {listing.category} • {listing.level}
@@ -110,7 +113,7 @@ export default function Dashboard() {
                     </div>
                     <Link
                       to="/marketplace"
-                      className="rounded-full bg-purple-600 px-4 py-2 text-xs font-semibold text-white"
+                      className="inline-flex w-full items-center justify-center rounded-full bg-purple-600 px-4 py-2 text-xs font-semibold text-white sm:w-auto"
                     >
                       View
                     </Link>
@@ -131,7 +134,7 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-gray-900">
-                    {loading ? "..." : dashboard?.pendingIncoming ?? 0}
+                    {loading ? "..." : (dashboard?.pendingIncoming ?? 0)}
                   </p>
                   <p className="text-sm text-gray-500">
                     Incoming exchanges waiting for your response

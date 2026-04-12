@@ -16,7 +16,9 @@ import messageRoutes from "./routes/messages.js";
 import feedbackRoutes from "./routes/feedback.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import publicRoutes from "./routes/public.js";
+import Conversation from "./models/Conversation.js";
 import Feedback from "./models/Feedback.js";
+import Session from "./models/Session.js";
 import User from "./models/User.js";
 import { getPublicStats } from "./utils/publicStats.js";
 
@@ -72,7 +74,16 @@ mongoose
       await mongoose.connection.db.createCollection("feedback");
     }
 
+    const existingSessionCollections = await mongoose.connection.db
+      .listCollections({ name: "session" })
+      .toArray();
+
+    if (existingSessionCollections.length === 0) {
+      await mongoose.connection.db.createCollection("session");
+    }
+
     await Feedback.syncIndexes();
+    await Session.syncIndexes();
     await User.syncIndexes();
     console.log("MongoDB connected");
   })
@@ -111,6 +122,81 @@ io.on("connection", (socket) => {
     socket.leave("public:stats");
   });
 
+  const getConversationParticipants = async (conversationId) => {
+    const conversation = await Conversation.findById(conversationId).select(
+      "participants",
+    );
+
+    return conversation?.participants || [];
+  };
+
+  const findOpenSession = async (conversationId) =>
+    Session.findOne({
+      conversation: conversationId,
+      endedAt: null,
+    }).sort({ createdAt: -1 });
+
+  const upsertCallSession = async (payload = {}, lifecycleEvent) => {
+    if (!payload.conversationId) {
+      return null;
+    }
+
+    const participants = await getConversationParticipants(payload.conversationId);
+    if (!participants.length) {
+      return null;
+    }
+
+    const now = new Date();
+
+    if (lifecycleEvent === "call:start") {
+      const startedAt = payload.startedAt ? new Date(payload.startedAt) : now;
+      return Session.create({
+        conversation: payload.conversationId,
+        participants,
+        initiatedBy: userId || null,
+        status: "ringing",
+        startedAt,
+      });
+    }
+
+    const session =
+      (await findOpenSession(payload.conversationId)) ||
+      (await Session.create({
+        conversation: payload.conversationId,
+        participants,
+        initiatedBy: userId || null,
+        status: "ringing",
+        startedAt: payload.connectedAt ? new Date(payload.connectedAt) : now,
+      }));
+
+    if (lifecycleEvent === "call:answer") {
+      const connectedAt = payload.connectedAt ? new Date(payload.connectedAt) : now;
+      session.answeredBy = userId || null;
+      session.connectedAt = connectedAt;
+      session.startedAt = session.startedAt || connectedAt;
+      session.status = "active";
+      await session.save();
+      return session;
+    }
+
+    if (lifecycleEvent === "call:end") {
+      const endedAt = payload.endedAt ? new Date(payload.endedAt) : now;
+      const referenceStart = session.connectedAt || session.startedAt || endedAt;
+      const durationSeconds = Math.max(
+        0,
+        Math.round((endedAt - referenceStart) / 1000),
+      );
+
+      session.endedAt = endedAt;
+      session.durationSeconds = durationSeconds;
+      session.status = session.connectedAt ? "ended" : "missed";
+      await session.save();
+      return session;
+    }
+
+    return session;
+  };
+
   const relayCallEvent = (eventName) => {
     socket.on(eventName, (payload = {}) => {
       if (!payload.conversationId) return;
@@ -122,13 +208,46 @@ io.on("connection", (socket) => {
     });
   };
 
-  [
-    "call:start",
-    "call:offer",
-    "call:answer",
-    "call:ice-candidate",
-    "call:end",
-  ].forEach(relayCallEvent);
+  socket.on("call:start", async (payload = {}) => {
+    if (!payload.conversationId) return;
+
+    const session = await upsertCallSession(payload, "call:start");
+
+    socket.to(`conversation:${payload.conversationId}`).emit("call:start", {
+      ...payload,
+      sessionId: session?._id?.toString() || null,
+      startedAt: session?.startedAt?.toISOString?.() || payload.startedAt || null,
+      fromUserId: userId,
+    });
+  });
+
+  socket.on("call:answer", async (payload = {}) => {
+    if (!payload.conversationId) return;
+
+    const session = await upsertCallSession(payload, "call:answer");
+
+    socket.to(`conversation:${payload.conversationId}`).emit("call:answer", {
+      ...payload,
+      sessionId: session?._id?.toString() || null,
+      fromUserId: userId,
+    });
+  });
+
+  socket.on("call:end", async (payload = {}) => {
+    if (!payload.conversationId) return;
+
+    const session = await upsertCallSession(payload, "call:end");
+
+    socket.to(`conversation:${payload.conversationId}`).emit("call:end", {
+      ...payload,
+      sessionId: session?._id?.toString() || null,
+      endedAt: session?.endedAt?.toISOString?.() || payload.endedAt || null,
+      durationSeconds: session?.durationSeconds ?? payload.durationSeconds ?? null,
+      fromUserId: userId,
+    });
+  });
+
+  ["call:offer", "call:ice-candidate"].forEach(relayCallEvent);
 
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);

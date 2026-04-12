@@ -19,6 +19,7 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState({
     name: "",
+    avatar: "",
     headline: "",
     bio: "",
     location: "",
@@ -36,6 +37,7 @@ export default function Profile() {
         const response = await API.get("/api/profile/me");
         setProfile({
           name: response.data.name || "",
+          avatar: response.data.avatar || "",
           headline: response.data.headline || "",
           bio: response.data.bio || "",
           location: response.data.location || "",
@@ -76,6 +78,7 @@ export default function Profile() {
     const response = await API.patch("/api/profile/me", profile);
     setProfile({
       name: response.data.name || "",
+      avatar: response.data.avatar || "",
       headline: response.data.headline || "",
       bio: response.data.bio || "",
       location: response.data.location || "",
@@ -99,7 +102,7 @@ export default function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gray-100 p-4 sm:p-6">
       <div className="mx-auto max-w-4xl space-y-5">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -108,14 +111,14 @@ export default function Profile() {
         >
           <div className="h-28 bg-gradient-to-r from-purple-500 to-indigo-500" />
 
-          <div className="px-6 pb-6">
+          <div className="px-4 pb-4 sm:px-6 sm:pb-6">
             <img
-              src={user?.avatar}
+              src={profile.avatar || user?.avatar}
               alt={user?.name}
               className="-mt-10 mb-4 h-20 w-20 rounded-full border-4 border-white bg-purple-100 object-cover shadow-sm"
             />
 
-            <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
               <div className="flex-1">
                 {editing ? (
                   <input
@@ -133,6 +136,25 @@ export default function Profile() {
                     {profile.name}
                   </h1>
                 )}
+
+                {editing ? (
+                  <div className="mt-3 w-full max-w-md">
+                    <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Profile Image URL
+                    </label>
+                    <input
+                      value={profile.avatar}
+                      onChange={(event) =>
+                        setProfile((current) => ({
+                          ...current,
+                          avatar: event.target.value,
+                        }))
+                      }
+                      placeholder="https://example.com/avatar.jpg"
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-purple-300"
+                    />
+                  </div>
+                ) : null}
 
                 {editing ? (
                   <input

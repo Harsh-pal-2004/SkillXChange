@@ -118,10 +118,12 @@ export default function Exchanges() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gray-100 p-4 sm:p-6">
       <div className="mx-auto max-w-5xl">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">My Exchanges</h1>
+          <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">
+            My Exchanges
+          </h1>
           <p className="mt-1 text-sm text-gray-500">
             Review requests, accept matches, and move conversations forward.
           </p>
@@ -210,7 +212,7 @@ export default function Exchanges() {
                   transition={{ duration: 0.25, delay: index * 0.03 }}
                   className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
                     <div className="flex items-center gap-3">
                       <img
                         src={otherUser?.avatar}
@@ -227,7 +229,7 @@ export default function Exchanges() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 text-xs">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
                       <span className="rounded-full bg-green-50 px-3 py-1 text-green-700">
                         {exchange.teachSkill}
                       </span>
@@ -237,7 +239,7 @@ export default function Exchanges() {
                       </span>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                       <span
                         className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${status.color} ${status.bg} ${status.border}`}
                       >

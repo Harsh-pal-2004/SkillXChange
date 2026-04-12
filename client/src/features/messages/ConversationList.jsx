@@ -12,7 +12,7 @@ export default function ConversationList({
   userId,
 }) {
   return (
-    <div className="flex w-80 shrink-0 flex-col rounded-3xl border border-gray-200 bg-white shadow-sm">
+    <div className="flex h-64 w-full shrink-0 flex-col rounded-3xl border border-gray-200 bg-white shadow-sm lg:h-auto lg:w-80">
       <div className="border-b border-gray-100 p-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-gray-900">Messages</h2>

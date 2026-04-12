@@ -2,6 +2,7 @@ import express from "express";
 import mongoose from "mongoose";
 import User from "../models/User.js";
 import { requireAuth } from "../middleware/auth.js";
+import { createAvatarUrl } from "../utils/avatar.js";
 
 const router = express.Router();
 
@@ -45,6 +46,7 @@ router.patch("/me", requireAuth, async (req, res) => {
   try {
     const {
       name,
+      avatar,
       headline,
       bio,
       location,
@@ -69,6 +71,9 @@ router.patch("/me", requireAuth, async (req, res) => {
       .filter((skill) => skill.length > 0 && skill.length <= 50);
 
     req.user.name = name?.trim() || req.user.name;
+    if (typeof avatar === "string") {
+      req.user.avatar = avatar.trim() || createAvatarUrl(req.user.name);
+    }
     req.user.headline = headline?.trim() || "";
     req.user.bio = bio?.trim() || "";
     req.user.location = location?.trim() || "";

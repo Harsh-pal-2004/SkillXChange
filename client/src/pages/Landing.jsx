@@ -194,6 +194,22 @@ export default function Landing() {
     return apiMessage || fallbackMessage;
   };
 
+  const handleLogoClick = (event) => {
+    event.preventDefault();
+
+    if (user) {
+      navigate("/dashboard");
+      return;
+    }
+
+    const heroSection = document.getElementById("hero");
+    if (heroSection) {
+      heroSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
   const handleLocalAuth = async () => {
     setSubmitting(true);
     setError("");
@@ -299,13 +315,19 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between border-b border-gray-100 bg-white/80 px-8 py-4 backdrop-blur-md">
-        <div className="flex items-center gap-2">
+      <nav className="fixed left-0 right-0 top-0 z-50 flex items-center justify-between border-b border-gray-100 bg-white/80 px-4 py-3 backdrop-blur-md sm:px-6 sm:py-4 lg:px-8">
+        <a
+          href="#hero"
+          onClick={handleLogoClick}
+          className="flex items-center gap-2"
+        >
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600">
             <ArrowLeftRight size={16} className="text-white" />
           </div>
-          <span className="text-lg font-bold text-gray-900">SkillXchange</span>
-        </div>
+          <span className="text-base font-bold text-gray-900 sm:text-lg">
+            SkillXchange
+          </span>
+        </a>
 
         <div className="hidden items-center gap-8 text-sm text-gray-600 md:flex">
           <a
@@ -322,16 +344,16 @@ export default function Landing() {
           </a>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => openAuth("login")}
-            className="text-sm font-medium text-purple-600 transition-colors hover:text-purple-700"
+            className="text-xs font-medium text-purple-600 transition-colors hover:text-purple-700 sm:text-sm"
           >
             Login
           </button>
           <button
             onClick={() => openAuth("register")}
-            className="flex items-center gap-2 rounded-full bg-purple-600 px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:bg-purple-700"
+            className="flex items-center gap-1.5 rounded-full bg-purple-600 px-3 py-2 text-xs font-medium text-white transition-all duration-200 hover:bg-purple-700 sm:gap-2 sm:px-5 sm:py-2.5 sm:text-sm"
           >
             Get Started
             <ArrowRight size={14} />
@@ -339,7 +361,10 @@ export default function Landing() {
         </div>
       </nav>
 
-      <section className="bg-gradient-to-b from-purple-50/50 to-white px-6 pt-32 pb-24 text-center">
+      <section
+        id="hero"
+        className="bg-gradient-to-b from-purple-50/50 to-white px-4 pb-20 pt-24 text-center sm:px-6 sm:pt-32 sm:pb-24"
+      >
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -350,14 +375,14 @@ export default function Landing() {
             The future of collaborative learning
           </div>
 
-          <h1 className="mb-6 text-5xl font-bold leading-tight text-gray-900 md:text-7xl">
+          <h1 className="mb-6 text-4xl font-bold leading-tight text-gray-900 sm:text-5xl md:text-7xl">
             Exchange Skills,{" "}
             <span className="bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent">
               Not Money
             </span>
           </h1>
 
-          <p className="mx-auto mb-10 max-w-2xl text-lg text-gray-500 md:text-xl">
+          <p className="mx-auto mb-10 max-w-2xl text-base text-gray-500 sm:text-lg md:text-xl">
             Join a thriving community where people teach what they know and
             learn what they love. No fees, no barriers, just pure knowledge
             exchange.
@@ -392,7 +417,7 @@ export default function Landing() {
         </motion.div>
       </section>
 
-      <section id="how" className="bg-white px-6 py-24">
+      <section id="how" className="bg-white px-4 py-16 sm:px-6 sm:py-24">
         <div className="mx-auto max-w-5xl text-center">
           <h2 className="mb-3 text-3xl font-bold md:text-4xl">How it works</h2>
           <p className="mb-16 text-gray-500">
@@ -437,7 +462,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section id="features" className="bg-gray-50 px-6 py-24">
+      <section id="features" className="bg-gray-50 px-4 py-16 sm:px-6 sm:py-24">
         <div className="mx-auto max-w-5xl text-center">
           <h2 className="mb-3 text-3xl font-bold md:text-4xl">
             Everything you need to learn and grow
@@ -502,7 +527,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="bg-purple-600 px-6 py-24">
+      <section className="bg-purple-600 px-4 py-16 sm:px-6 sm:py-24">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
@@ -524,7 +549,7 @@ export default function Landing() {
         </motion.div>
       </section>
 
-      <footer className="bg-gray-900 px-8 py-16 text-gray-400">
+      <footer className="bg-gray-900 px-4 py-14 text-gray-400 sm:px-8 sm:py-16">
         <div className="mx-auto max-w-6xl">
           <div className="mb-12 grid gap-10 md:grid-cols-4">
             <div>

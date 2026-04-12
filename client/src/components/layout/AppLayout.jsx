@@ -42,9 +42,9 @@ export default function AppLayout() {
     <div className="flex h-screen overflow-hidden bg-gray-100">
       <aside className="hidden w-64 flex-col border-r border-gray-200 bg-white shadow-sm md:flex">
         <div className="border-b border-gray-100 p-6">
-          <h1 className="text-xl font-bold text-gray-900">
+          <Link to="/dashboard" className="text-xl font-bold text-gray-900">
             Skill<span className="text-purple-600">Xchange</span>
-          </h1>
+          </Link>
           <p className="mt-1 text-xs text-gray-400">Share. Learn. Grow.</p>
         </div>
 
@@ -96,17 +96,20 @@ export default function AppLayout() {
       </aside>
 
       <div className="fixed left-0 right-0 top-0 z-50 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 shadow-sm md:hidden">
-        <h1 className="text-lg font-bold text-gray-900">
+        <Link to="/dashboard" className="text-lg font-bold text-gray-900">
           Skill<span className="text-purple-600">Xchange</span>
-        </h1>
+        </Link>
 
-        <button onClick={() => setMobileOpen((current) => !current)} className="text-gray-500">
+        <button
+          onClick={() => setMobileOpen((current) => !current)}
+          className="text-gray-500"
+        >
           {mobileOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-white px-4 pt-16 md:hidden">
+        <div className="fixed inset-0 z-40 overflow-y-auto bg-white px-4 pt-16 md:hidden">
           <nav className="space-y-2">
             {navLinks.map(({ path, label, icon: Icon }) => (
               <Link

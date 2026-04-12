@@ -1,12 +1,21 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, Mail, BookOpen, Star, Send } from "lucide-react";
+import {
+  ArrowLeft,
+  MapPin,
+  Mail,
+  BookOpen,
+  Star,
+  Send,
+  MessageSquare,
+} from "lucide-react";
 import API from "@/api/axios";
 import { useAuth } from "@/context/useAuth";
 
 export default function PublicProfile() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { userId } = useParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -181,9 +190,25 @@ export default function PublicProfile() {
     }
   };
 
+  const handleStartChat = async () => {
+    if (!user || !profile?._id || String(user._id) === String(profile._id)) {
+      return;
+    }
+
+    try {
+      const response = await API.post("/api/messages/conversations/direct", {
+        targetUserId: profile._id,
+      });
+
+      navigate(`/messages?conversation=${response.data._id}`);
+    } catch {
+      setFeedbackError("Could not start chat right now.");
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 p-6">
+      <div className="min-h-screen bg-gray-100 p-4 sm:p-6">
         <div className="mx-auto max-w-4xl rounded-3xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500 shadow-sm">
           Loading profile...
         </div>
@@ -193,7 +218,7 @@ export default function PublicProfile() {
 
   if (error || !profile) {
     return (
-      <div className="min-h-screen bg-gray-100 p-6">
+      <div className="min-h-screen bg-gray-100 p-4 sm:p-6">
         <div className="mx-auto max-w-4xl space-y-4">
           <Link
             to="/marketplace"
@@ -211,7 +236,7 @@ export default function PublicProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gray-100 p-4 sm:p-6">
       <div className="mx-auto max-w-4xl space-y-5">
         <Link
           to="/marketplace"
@@ -228,7 +253,7 @@ export default function PublicProfile() {
         >
           <div className="h-28 bg-gradient-to-r from-blue-500 to-purple-500" />
 
-          <div className="px-6 pb-6">
+          <div className="px-4 pb-4 sm:px-6 sm:pb-6">
             <img
               src={profile.avatar}
               alt={profile.name}
@@ -259,6 +284,18 @@ export default function PublicProfile() {
               </div>
             </div>
 
+            {user && String(user._id) !== String(userId) ? (
+              <div className="mt-4">
+                <button
+                  onClick={handleStartChat}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-purple-200 bg-purple-50 px-4 py-2.5 text-sm font-semibold text-purple-700 transition-colors hover:bg-purple-100 sm:w-auto"
+                >
+                  <MessageSquare size={15} />
+                  Message
+                </button>
+              </div>
+            ) : null}
+
             <div className="mt-5 rounded-2xl border border-gray-200 bg-gray-50 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -273,7 +310,7 @@ export default function PublicProfile() {
                 </div>
 
                 {user && String(user._id) !== String(userId) ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {myFeedbackId ? (
                       <button
                         onClick={deleteFeedback}

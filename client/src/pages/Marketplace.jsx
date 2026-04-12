@@ -221,11 +221,13 @@ export default function Marketplace() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gray-100 p-4 sm:p-6">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Marketplace</h1>
+            <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">
+              Marketplace
+            </h1>
             <p className="mt-1 text-sm text-gray-500">
               Browse skill listings and discover member profiles by name or
               skill.
@@ -361,11 +363,11 @@ export default function Marketplace() {
                         </div>
                       </div>
 
-                      <div className="mt-5 flex items-center justify-between">
+                      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-xs text-gray-400">
                           {listing.category} • {listing.level}
                         </p>
-                        <div className="flex items-center gap-2">
+                        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                           <button
                             onClick={() =>
                               handleViewProfile(listing.owner?._id)
@@ -501,7 +503,7 @@ export default function Marketplace() {
                         </div>
                       </div>
 
-                      <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl bg-gray-50 px-4 py-3 text-xs text-gray-500">
+                      <div className="mt-5 flex flex-col gap-3 rounded-2xl bg-gray-50 px-4 py-3 text-xs text-gray-500 sm:flex-row sm:items-center sm:justify-between">
                         <span>
                           Start a direct conversation even if this user has not
                           posted a listing yet.

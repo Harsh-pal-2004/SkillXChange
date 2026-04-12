@@ -135,7 +135,8 @@ export default function Messages() {
         ),
       ) ||
       nextConversations.find(
-        (conversation) => conversation._id === selectedConversationRef.current?._id,
+        (conversation) =>
+          conversation._id === selectedConversationRef.current?._id,
       ) ||
       nextConversations[0];
 
@@ -407,7 +408,8 @@ export default function Messages() {
 
   const endCall = async () => {
     const conversationId =
-      activeCallConversationIdRef.current || selectedConversationRef.current?._id;
+      activeCallConversationIdRef.current ||
+      selectedConversationRef.current?._id;
     const startedAt = callConnectedAtRef.current;
     const shouldLogSummary = callStatus === "active" && Boolean(startedAt);
 
@@ -525,7 +527,8 @@ export default function Messages() {
     const handleIncomingMessage = (incomingMessage) => {
       const normalizedMessage = normalizeMessage(incomingMessage);
       const isSelectedConversation =
-        normalizedMessage.conversationId === selectedConversationRef.current?._id;
+        normalizedMessage.conversationId ===
+        selectedConversationRef.current?._id;
       const sentByCurrentUser = normalizedMessage.sender?._id === user?._id;
       const conversationExists = conversationsRef.current.some(
         (conversation) => conversation._id === normalizedMessage.conversationId,
@@ -545,9 +548,9 @@ export default function Messages() {
                   lastMessageAt: normalizedMessage.createdAt,
                   unreadCount: isSelectedConversation
                     ? 0
-                    : normalizedMessage.unreadCounts?.[user?._id] ??
+                    : (normalizedMessage.unreadCounts?.[user?._id] ??
                       conversation.unreadCount ??
-                      0,
+                      0),
                 }
               : conversation,
           ),
@@ -594,7 +597,8 @@ export default function Messages() {
       );
 
       activeCallConversationIdRef.current = payload.conversationId;
-      callConnectedAtRef.current = payload.connectedAt || new Date().toISOString();
+      callConnectedAtRef.current =
+        payload.connectedAt || new Date().toISOString();
       setCallStatus("active");
 
       while (queuedCandidatesRef.current.length > 0) {
@@ -653,7 +657,9 @@ export default function Messages() {
     }
 
     const previousJoined = joinedConversationIdsRef.current;
-    const nextJoined = new Set(conversations.map((conversation) => conversation._id));
+    const nextJoined = new Set(
+      conversations.map((conversation) => conversation._id),
+    );
 
     nextJoined.forEach((conversationId) => {
       if (!previousJoined.has(conversationId)) {
@@ -703,8 +709,8 @@ export default function Messages() {
   );
 
   return (
-    <div className="h-screen bg-gray-100 p-4">
-      <div className="mx-auto flex h-full max-w-7xl gap-4">
+    <div className="h-screen bg-gray-100 p-3 sm:p-4">
+      <div className="mx-auto flex h-full max-w-7xl flex-col gap-3 lg:flex-row lg:gap-4">
         <ConversationList
           filteredConversations={filteredConversations}
           isConnected={isConnected}
@@ -728,9 +734,7 @@ export default function Messages() {
           onMessageChange={setMessage}
           onSend={handleSend}
           onStartCall={startCall}
-          onToggleCallLayout={() =>
-            setIsCallFullscreen((current) => !current)
-          }
+          onToggleCallLayout={() => setIsCallFullscreen((current) => !current)}
           selectedConversation={selectedConversation}
           userId={user?._id}
         />

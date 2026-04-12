@@ -32,7 +32,7 @@ export default function MessageThread({
   }
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
       <div className="border-b border-gray-100 p-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -57,7 +57,11 @@ export default function MessageThread({
                 onClick={onToggleCallLayout}
                 className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700"
               >
-                {isCallFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                {isCallFullscreen ? (
+                  <Minimize2 size={14} />
+                ) : (
+                  <Maximize2 size={14} />
+                )}
                 {isCallFullscreen ? "Minimize" : "Open Call"}
               </button>
             ) : null}
@@ -104,7 +108,9 @@ export default function MessageThread({
                       <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gray-400">
                         Video Call
                       </p>
-                      <p className="mt-2 font-medium">{getCallMessageLabel(item)}</p>
+                      <p className="mt-2 font-medium">
+                        {getCallMessageLabel(item)}
+                      </p>
                       <p className="mt-1 text-xs text-gray-400">
                         {formatMessageTime(item.createdAt)}
                       </p>
@@ -123,7 +129,7 @@ export default function MessageThread({
                   }`}
                 >
                   <div
-                    className={`max-w-md rounded-2xl px-4 py-3 text-sm ${
+                    className={`max-w-[85%] sm:max-w-md rounded-2xl px-4 py-3 text-sm ${
                       sentByCurrentUser
                         ? "rounded-br-sm bg-purple-600 text-white"
                         : "rounded-bl-sm bg-gray-100 text-gray-800"
@@ -147,7 +153,7 @@ export default function MessageThread({
       </div>
 
       <div className="border-t border-gray-100 p-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <input
             type="text"
             placeholder="Type a message..."
@@ -162,7 +168,7 @@ export default function MessageThread({
           />
           <button
             onClick={onSend}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-600 text-white"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-600 text-white"
           >
             <Send size={16} />
           </button>
