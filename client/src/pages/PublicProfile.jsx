@@ -1,23 +1,54 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, Mail, BookOpen, Star } from "lucide-react";
+import { ArrowLeft, MapPin, Mail, BookOpen, Star, Send } from "lucide-react";
 import API from "@/api/axios";
+import { useAuth } from "@/context/useAuth";
 
 export default function PublicProfile() {
+  const { user } = useAuth();
   const { userId } = useParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [profile, setProfile] = useState(null);
+  const [feedback, setFeedback] = useState([]);
+  const [feedbackSummary, setFeedbackSummary] = useState({
+    averageScore: 0,
+    totalFeedback: 0,
+  });
+  const [feedbackForm, setFeedbackForm] = useState({
+    score: 5,
+    comment: "",
+  });
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [feedbackError, setFeedbackError] = useState("");
+  const [feedbackNotice, setFeedbackNotice] = useState("");
 
   useEffect(() => {
     const loadProfile = async () => {
       setLoading(true);
       setError("");
+      setFeedbackError("");
+      setFeedbackNotice("");
 
       try {
-        const response = await API.get(`/api/profile/${userId}`);
-        setProfile(response.data);
+        const profileResponse = await API.get(`/api/profile/${userId}`);
+        setProfile(profileResponse.data);
+
+        try {
+          const feedbackResponse = await API.get(
+            `/api/feedback/users/${userId}`,
+          );
+          setFeedback(feedbackResponse.data.feedback || []);
+          setFeedbackSummary(
+            feedbackResponse.data.summary || {
+              averageScore: 0,
+              totalFeedback: 0,
+            },
+          );
+        } catch {
+          setFeedbackError("Feedback could not be loaded right now.");
+        }
       } catch (requestError) {
         setError(
           requestError?.response?.data?.message || "Failed to load profile.",
@@ -29,6 +60,50 @@ export default function PublicProfile() {
 
     loadProfile();
   }, [userId]);
+
+  const submitFeedback = async () => {
+    if (!user || !userId || String(user._id) === String(userId)) {
+      return;
+    }
+
+    setSubmittingFeedback(true);
+    setFeedbackError("");
+    setFeedbackNotice("");
+
+    try {
+      const response = await API.post(`/api/feedback/users/${userId}`, {
+        score: feedbackForm.score,
+        comment: feedbackForm.comment,
+      });
+
+      setFeedback(response.data.feedback || []);
+      setFeedbackSummary(
+        response.data.summary || {
+          averageScore: 0,
+          totalFeedback: 0,
+        },
+      );
+      setFeedbackNotice("Feedback saved successfully.");
+      setFeedbackForm({ score: 5, comment: "" });
+      setProfile((current) =>
+        current
+          ? {
+              ...current,
+              feedbackAverage:
+                response.data.summary?.averageScore ?? current.feedbackAverage,
+              feedbackCount:
+                response.data.summary?.totalFeedback ?? current.feedbackCount,
+            }
+          : current,
+      );
+    } catch (requestError) {
+      setFeedbackError(
+        requestError?.response?.data?.message || "Failed to submit feedback.",
+      );
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -101,11 +176,88 @@ export default function PublicProfile() {
               <div className="flex items-center gap-2 text-amber-500">
                 <Star size={14} />
                 <span className="text-gray-500">
-                  {profile.ratingCount > 0
-                    ? `${Number(profile.ratingAverage || 0).toFixed(1)} (${profile.ratingCount} ratings)`
-                    : "No ratings yet"}
+                  {profile.feedbackCount > 0
+                    ? `${Number(profile.feedbackAverage || 0).toFixed(1)} (${profile.feedbackCount} feedback)`
+                    : "No feedback yet"}
                 </span>
               </div>
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-gray-800">
+                    Feedback
+                  </h2>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {feedbackSummary.totalFeedback > 0
+                      ? `${Number(feedbackSummary.averageScore || 0).toFixed(1)} average from ${feedbackSummary.totalFeedback} feedback entries`
+                      : "No feedback has been shared yet."}
+                  </p>
+                </div>
+
+                {user && String(user._id) !== String(userId) ? (
+                  <button
+                    onClick={submitFeedback}
+                    disabled={submittingFeedback}
+                    className="inline-flex items-center gap-2 rounded-full bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Send size={14} />
+                    {submittingFeedback ? "Submitting..." : "Save Feedback"}
+                  </button>
+                ) : null}
+              </div>
+
+              {user && String(user._id) !== String(userId) ? (
+                <div className="mt-4 grid gap-3 md:grid-cols-[auto,1fr] md:items-start">
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((score) => (
+                      <button
+                        key={score}
+                        type="button"
+                        onClick={() =>
+                          setFeedbackForm((current) => ({
+                            ...current,
+                            score,
+                          }))
+                        }
+                        className={`rounded-full p-1 transition ${score <= feedbackForm.score ? "text-amber-500" : "text-gray-300"}`}
+                        aria-label={`Rate ${score} star${score === 1 ? "" : "s"}`}
+                      >
+                        <Star
+                          size={18}
+                          fill={
+                            score <= feedbackForm.score
+                              ? "currentColor"
+                              : "none"
+                          }
+                        />
+                      </button>
+                    ))}
+                  </div>
+
+                  <textarea
+                    rows={3}
+                    value={feedbackForm.comment}
+                    onChange={(event) =>
+                      setFeedbackForm((current) => ({
+                        ...current,
+                        comment: event.target.value,
+                      }))
+                    }
+                    placeholder="Write a short feedback note..."
+                    className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-purple-300"
+                  />
+                </div>
+              ) : null}
+
+              {feedbackError ? (
+                <p className="mt-3 text-sm text-red-600">{feedbackError}</p>
+              ) : null}
+
+              {feedbackNotice ? (
+                <p className="mt-3 text-sm text-green-600">{feedbackNotice}</p>
+              ) : null}
             </div>
 
             <p className="mt-4 text-sm leading-relaxed text-gray-600">
@@ -155,6 +307,64 @@ export default function PublicProfile() {
             </motion.div>
           ))}
         </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm"
+        >
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-700">
+            <Star size={16} className="text-purple-600" />
+            Recent Feedback
+          </h3>
+
+          <div className="space-y-4">
+            {feedback.length === 0 ? (
+              <p className="text-sm text-gray-400">No feedback yet.</p>
+            ) : (
+              feedback.map((item) => (
+                <div
+                  key={item._id}
+                  className="rounded-2xl border border-gray-100 bg-gray-50 p-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={item.sender?.avatar || ""}
+                        alt={item.sender?.name || "Sender"}
+                        className="h-10 w-10 rounded-full bg-purple-100 object-cover"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">
+                          {item.sender?.name || "Anonymous"}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {item.sender?.headline || "Community member"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 text-amber-500">
+                      {Array.from({ length: 5 }).map((_, index) => (
+                        <Star
+                          key={index}
+                          size={14}
+                          fill={index < item.score ? "currentColor" : "none"}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {item.comment ? (
+                    <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                      {item.comment}
+                    </p>
+                  ) : null}
+                </div>
+              ))
+            )}
+          </div>
+        </motion.div>
       </div>
     </div>
   );

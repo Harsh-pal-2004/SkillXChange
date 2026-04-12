@@ -13,8 +13,10 @@ import profileRoutes from "./routes/profile.js";
 import listingRoutes from "./routes/listings.js";
 import exchangeRoutes from "./routes/exchanges.js";
 import messageRoutes from "./routes/messages.js";
+import feedbackRoutes from "./routes/feedback.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import publicRoutes from "./routes/public.js";
+import Feedback from "./models/Feedback.js";
 import User from "./models/User.js";
 import { getPublicStats } from "./utils/publicStats.js";
 
@@ -54,6 +56,7 @@ app.use("/api/profile", profileRoutes);
 app.use("/api/listings", listingRoutes);
 app.use("/api/exchanges", exchangeRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/feedback", feedbackRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/public", publicRoutes);
 
@@ -61,6 +64,15 @@ app.use("/api/public", publicRoutes);
 mongoose
   .connect(process.env.MONGO_URI)
   .then(async () => {
+    const existingCollections = await mongoose.connection.db
+      .listCollections({ name: "feedback" })
+      .toArray();
+
+    if (existingCollections.length === 0) {
+      await mongoose.connection.db.createCollection("feedback");
+    }
+
+    await Feedback.syncIndexes();
     await User.syncIndexes();
     console.log("MongoDB connected");
   })

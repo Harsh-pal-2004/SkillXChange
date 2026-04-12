@@ -27,7 +27,7 @@ router.get("/discover", requireAuth, async (req, res) => {
 
     const users = await User.find(query)
       .select(
-        "name username email avatar headline bio location teachSkills learnSkills ratingAverage ratingCount createdAt",
+        "name username email avatar headline bio location teachSkills learnSkills ratingAverage ratingCount feedbackAverage feedbackCount createdAt",
       )
       .sort({ createdAt: -1 });
 
@@ -89,7 +89,7 @@ router.get("/:id", requireAuth, async (req, res) => {
     }
 
     const user = await User.findById(req.params.id).select(
-      "name username email avatar headline bio location teachSkills learnSkills ratingAverage ratingCount createdAt",
+      "name username email avatar headline bio location teachSkills learnSkills ratingAverage ratingCount feedbackAverage feedbackCount createdAt",
     );
 
     if (!user) {

@@ -25,6 +25,8 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String, select: false },
     ratingAverage: { type: Number, default: 0, min: 0, max: 5 },
     ratingCount: { type: Number, default: 0, min: 0 },
+    feedbackAverage: { type: Number, default: 0, min: 0, max: 5 },
+    feedbackCount: { type: Number, default: 0, min: 0 },
     role: { type: String, enum: ["user", "admin"], default: "user" },
     bio: {
       type: String,
